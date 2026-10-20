@@ -49,10 +49,11 @@ displayUrl: app.example.com        # optional; shown in the video's address bar 
 brandColor: "#2563eb"              # optional; otherwise the app's main color is read from the page
 music: true                        # the user's answer to "background music?" (ask once, then keep)
 hide: [".cookie-banner", "#intercom-container"]   # optional; elements kept out of the video
+authCheck: /admin/                 # optional; a page that needs login (set it when the home page is public, e.g. WordPress: /wp-admin/)
 login:                             # optional; TEST/DEMO accounts only
   - goto: /login
   - type: { target: { label: Email }, value: demo@example.test }
-  - type: { target: { label: Password }, value: demo1234 }
+  - type: { target: { label: Password }, value: "${DEMO_PASSWORD}" }   # from .demo-video/.env
   - click: { role: button, name: Sign in }
 crawl:                             # optional
   maxPages: 25
@@ -61,10 +62,11 @@ crawl:                             # optional
 ```
 
 - **Never ask for or type a real user's password.** Only seed or demo accounts in a local/test environment.
+- **Keep the password out of config.yaml:** write `DEMO_PASSWORD=...` to `.demo-video/.env` (git-ignored) and use `${DEMO_PASSWORD}` in the config; any `${NAME}` is filled from that file or the environment.
 - No real customer data may appear in the video. Prefer a test environment filled with seed data.
-- Don't know the login form labels? Look at the login page in the project's source, or run `discover.mjs` once without `login`; the sign-in fields show up in the map.
+- Don't know the login form labels? Run `discover.mjs` once without `login` first: the sign-in page's fields and buttons show up in the map with their exact names (faster and more reliable than reading templates).
 - An existing config without a `music:` line means the question was never asked: ask it before the next video and add the line (`record.mjs` prints a note when it's missing).
-- `.demo-video/.gitignore` is created automatically (ignores `auth.json` and `out/`); config and storyboards can be committed.
+- `.demo-video/.gitignore` is created automatically (ignores `auth.json`, `.env` and `out/`); config and storyboards can be committed.
 - Dev-server badges (Next.js, Vite) are always hidden; use `hide` for anything else (chat widgets, cookie banners, environment ribbons).
 
 ### 2. Get the map
@@ -75,7 +77,7 @@ node <skill>/scripts/discover.mjs          # cached: <1 s, no browser
 
 Then read `.demo-video/app-map.md`. For each page it lists: how to reach it, links, buttons, form fields (with input type and select options), table columns, and the dialogs that "New/Add" buttons open. Names are Playwright accessible names; use them verbatim as targets.
 
-- The first crawl takes a few seconds to ~1 minute. It never clicks Save/Delete/Send-like buttons and never submits forms.
+- The first crawl takes a few seconds to ~1 minute. It only presses "New/Add/Create"-like buttons to see what they open; it never presses a button that submits a form, nor Save/Delete/Send, cart/buy/order, publish or invite-like buttons, and never follows links that act on a GET (delete/trash/add-to-cart/reorder/logout).
 - Feature not in the map (e.g. a page behind a row click)? Add it with `--only <path>`, or run a draft storyboard with `record.mjs --inspect --upto N`.
 - If the project's source is at hand, its routes and form components are a quick way to fill gaps in the map.
 
@@ -127,7 +129,9 @@ teardown:                           # after recording; runs even if the recordin
 
 - A setup/teardown step with `optional: true` is skipped if it fails (3 s timeout). Consecutive optional steps form a chain: once one fails, the rest of the chain is skipped without waiting. A teardown failure never breaks the recording; it's printed as a warning.
 - The browser's native `confirm()` / `alert()` dialogs are accepted automatically.
-- Built-in variables: `{{run}}` (4 characters unique to this run), `{{date}}` (YYYY-MM-DD), `{{time}}` (HH:MM). If no teardown is possible (no delete UI), use `{{run}}` for unique names, but remember it shows in the video. Unknown variables are an error.
+- Built-in variables: `{{run}}` (4 characters unique to this run), `{{date}}` (YYYY-MM-DD), `{{time}}` (HH:MM). Unknown variables are an error.
+- No delete in the UI (e.g. a customer can only *close* a ticket)? Undo as far as the UI allows (close/cancel/archive) in `teardown`, and tell the user exactly what the recording left behind. `{{run}}` keeps names unique but shows in the video.
+- Recordings repeat the action: apps with rate limits (e.g. "5 tickets per hour") or one-time actions may refuse a second take. Get the storyboard right with `--inspect --upto N` before recording.
 
 **Actions** (exactly one per step):
 
@@ -137,7 +141,7 @@ teardown:                           # after recording; runs even if the recordin
 | `click` / `check` | target | cursor travels, clicks, ripple |
 | `hover` | target | |
 | `type` | `{target, value, clear?, enter?}` | clears the field first; for date/time inputs give `YYYY-MM-DD` / `HH:MM` |
-| `select` | `{target, option}` | native `<select>`: the video shows a look-alike list opening and the cursor picking the option (the OS popup itself can't be recorded); custom dropdowns are `click` steps |
+| `select` | `{target, option}` | native `<select>`: the video shows a look-alike list opening and the cursor picking the option (the OS popup itself can't be recorded). `option` is the label (whitespace-insensitive) or any part of it that matches one option only (`option: Vinyl`); `{index: n}` / `{value: x}` also work. Custom dropdowns are `click` steps |
 | `press` | `"Enter"`, `"Escape"` | |
 | `scroll` | `400` or `{to: target}` | smooth scroll |
 | `waitFor` | `{text: ...}` / `{url: "regex"}` / target | waiting is compressed in the video |
@@ -145,21 +149,30 @@ teardown:                           # after recording; runs even if the recordin
 
 **Targets:** `{role, name}` → `{label}` → `{placeholder}` → `{text}` → `{testId}` → `{css}`. Extras: `exact: true`, `nth: 1`, `hasText`, `within: <target>`, `global: true`. **When a dialog/modal is open, targets are looked up inside the topmost dialog first**, then in the whole page — same-labelled filters behind the dialog are never picked. `within` or `global: true` turns this off. Map entry `button "＋ New project"` → `{ role: button, name: "＋ New project" }`, `textbox "Full name"` → `{ label: Full name }`.
 
-Elements are scrolled into view automatically, including when they're visible but covered by a sticky header or a dialog footer.
+Matching rules that make targets forgiving:
+- Only visible elements count (hidden twins such as a sign-up tab or a mobile menu are skipped).
+- If several elements contain the name, one whose name is *exactly* it wins (a "Publish" button over a "Publish" panel toggle). `exact: true` forces exact matching; for labels it still ignores required markers like `Password *`.
+- Custom-styled radios/checkboxes (hidden `<input>`, styled label/card) are clicked through their label automatically.
+- The map shows groups for radios/checkboxes (`radio "Yes" in radiogroup "Lamination"`); target them with `within: { role: radiogroup, name: Lamination }`.
+- Fields without a label are targeted by `{ placeholder: ... }`.
+
+Elements are scrolled into view automatically, including when they're visible but covered by a sticky header or a dialog footer, or sit in the bottom band where captions go.
+
+**Known limit — iframes:** content inside iframes (rich-text editors like TinyMCE/CKEditor, embedded payment forms, some editors' canvases) can't be targeted. Use the editor's plain-text tab, another field (an excerpt/summary), or leave that part out of the video.
 
 **Step fields:** `caption` (stays until the next caption; `""` hides it), `zoom` (`true`/`false`/a target; by default `type` and `select` steps zoom in), `hold` (ms), `sound` (`true`/`false`; force the click sound on/off for this step).
 
 **Rules:**
 - Aim for 15–40 s and at most ~12 steps. Focus on the core of the feature and take the shortest route (the map's "how to reach" line). If useful, start with a `goto` straight to the target page.
 - Captions are short and imperative, ~8 words max. Group consecutive similar fields under one caption.
-- Show the outcome: wait for the success message in the last step and `zoom` on the created record. Prefer a cell over a very wide element like a whole table row.
+- Show the outcome: wait for the success message in the last step and `zoom` on the created record. Zoom on something compact — a heading, a cell, a name — not on a full-width element (a table row, a success banner across the page): those are too wide to zoom into, so nothing happens.
 - Fill only the fields the task needs. Values should be realistic but made up.
 
 ### 4. Record and render
 
 ```bash
-node <skill>/scripts/record.mjs storyboard.yaml --out .demo-video/out/<name> \
-  && python3 <skill>/scripts/render.py .demo-video/out/<name> -o <name>.mp4 --stills .demo-video/out/<name>/stills
+node <skill>/scripts/record.mjs .demo-video/storyboards/<name>.yaml --out .demo-video/out/<name> \
+  && python3 <skill>/scripts/render.py .demo-video/out/<name> -o .demo-video/out/<name>.mp4 --stills .demo-video/out/<name>/stills
 ```
 
 `--format vertical|square` on `record.mjs` (or `format:` in the storyboard) records a 9:16 or 1:1 clip. The format must be chosen at record time: it sets the browser viewport, so the app lays out for that width (vertical uses a 430px mobile layout and reserves a caption band below the window).

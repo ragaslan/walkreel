@@ -25,7 +25,12 @@ import path from 'node:path';
 import { loadStyle, findProjectDir, loadProject, launch, ensureAuth, checkServer } from './lib.mjs';
 
 const CREATE_RE = /(^|\s|\+|＋)(yeni|ekle|oluştur|olustur|new|add|create)(\s|$)/i;
-const DANGER_RE = /(kaydet|güncelle|sil|kaldır|delete|remove|save|update|gönder|send|submit|onayla|confirm|öde|pay|çıkış|cikis|logout|sign ?out|log ?out|iptal et|archive|arşivle)/i;
+const DANGER_RE = /(kaydet|güncelle|sil|kaldır|delete|remove|save|update|gönder|send|submit|onayla|confirm|öde|pay|çıkış|cikis|logout|sign ?out|log ?out|iptal et|archive|arşivle|sepet|cart|basket|bag|buy|satın|purchase|checkout|sipariş|order|rezerv|book|randevu|abone|subscribe|davet|invite|uygula|apply|yayınla|yayımla|publish|paylaş|share|kopyala|duplicate|clone)/i;
+// Links whose URL performs an action on a plain GET (WordPress row actions, WooCommerce
+// add-to-cart/reorder links, logout...). Never followed while mapping.
+// Link names that do something rather than open a page (navigation like "Cart" is fine)
+const LINK_DANGER_RE = /(^|\s)(sil|delete|remove|kaldır|trash|çöpe|boşalt|empty|iptal|cancel|logout|çıkış|sign ?out|log ?out)(\s|$)/i;
+const ACTION_URL_RE = /[?&](action|do|op)=(delete|trash|remove|destroy|cancel|empty|duplicate|clone|logout)|[?&_](add[-_]to[-_]cart|remove_item|reorder|undo_item|empty[-_]cart|delete|trash)\b|\/(delete|destroy|remove|trash|logout|signout|sign-out|cikis)(\/|$|\?)/i;
 const LOGOUT_RE = /(logout|log-out|signout|sign-out|cikis|çıkış|oturumu-kapat)/i;
 const SKIP_EXT_RE = /\.(pdf|zip|csv|xlsx?|docx?|png|jpe?g|gif|svg|mp4)$/i;
 const FIELD_ROLES = new Set(['textbox', 'searchbox', 'combobox', 'listbox', 'checkbox', 'radio', 'spinbutton', 'slider', 'switch']);
@@ -85,10 +90,11 @@ function parseAria(text) {
   return root;
 }
 
-function walk(node, fn, ctx = []) {
+// fn(node, ancestorRoles, ancestorNodes)
+function walk(node, fn, ctx = [], anc = []) {
   for (const c of node.children || []) {
-    fn(c, ctx);
-    walk(c, fn, [...ctx, c.role]);
+    fn(c, ctx, anc);
+    walk(c, fn, [...ctx, c.role], [...anc, c]);
   }
 }
 
@@ -96,10 +102,13 @@ function walk(node, fn, ctx = []) {
 function summarize(tree, { skipDialogs = true } = {}) {
   const out = { headings: [], links: [], buttons: [], fields: [], columns: [], dialogs: [] };
   const seen = new Set();
-  walk(tree, (n, ctx) => {
+  walk(tree, (n, ctx, anc) => {
     const inDialog = ctx.includes('dialog') || ctx.includes('alertdialog');
     if (skipDialogs && inDialog) return;
-    const global = ctx.some((r) => ['navigation', 'complementary', 'banner', 'contentinfo'].includes(r));
+    // header/nav/footer are chrome; an <aside> often holds page-specific content (a form, a
+    // filter panel), so "complementary" alone doesn't make something global — repetition across
+    // pages does (see globalLinks / globalButtons)
+    const global = ctx.some((r) => ['navigation', 'banner', 'contentinfo'].includes(r));
     if (n.role === 'dialog' || n.role === 'alertdialog') {
       if (skipDialogs) out.dialogs.push({ name: n.name, ...summarize(n, { skipDialogs: false }) });
       return;
@@ -117,6 +126,12 @@ function summarize(tree, { skipDialogs = true } = {}) {
       const f = { role: n.role, name: n.name || null };
       if (n.props?.placeholder) f.placeholder = n.props.placeholder;
       if (n.attrs) f.state = n.attrs;
+      // radios/checkboxes are often "Yes"/"No" in several groups: say which group, so the
+      // storyboard can target { role: radio, name: Yes, within: { role: radiogroup, name: ... } }
+      if (n.role === 'radio' || n.role === 'checkbox') {
+        const g = [...anc].reverse().find((a) => (a.role === 'radiogroup' || a.role === 'group') && a.name);
+        if (g) f.group = { role: g.role, name: g.name };
+      }
       if (n.role === 'combobox' || n.role === 'listbox') {
         const opts = (n.children || []).filter((c) => c.role === 'option').map((c) => c.name);
         if (opts.length) f.options = opts;
@@ -134,10 +149,17 @@ function isHashRoute(u) {
   return /^#!?\//.test(u.hash);
 }
 
-function normUrl(href, base) {
+// The query is dropped so ?page=2 / ?sort=x don't count as new pages — except where it IS
+// the route: script-style paths (/wp-admin/edit.php?post_type=x, /admin.aspx?id=...) and
+// URLs given explicitly (--only, crawl.start). Tracking/nonce parameters never count.
+const NOISE_PARAM = /^(utm_|_wpnonce$|nonce$|_$|fbclid$|gclid$|ref$|_ga$)/i;
+function normUrl(href, base, keepQuery = false) {
   const u = new URL(href, base);
   if (!isHashRoute(u)) u.hash = '';
-  u.search = '';
+  if (keepQuery || /\.(php|aspx?|jsp|cgi)$/i.test(u.pathname)) {
+    const kept = [...u.searchParams].filter(([k]) => !NOISE_PARAM.test(k)).sort(([a], [b]) => a.localeCompare(b));
+    u.search = new URLSearchParams(kept).toString();
+  } else u.search = '';
   return u.toString().replace(/\/(#|$)/, (m, g) => (g === '#' ? '/#' : '/'));
 }
 
@@ -211,7 +233,13 @@ async function probeButtons(page, url, info, origin, budgetOk) {
         await page.goto(url, { waitUntil: 'load', timeout: 20000 });
         await settle(page, 300);
       }
-      await page.getByRole('button', { name: b.name, exact: true }).first().click({ timeout: 3000 });
+      const btn = page.getByRole('button', { name: b.name, exact: true }).first();
+      // a button that submits a form does something (adds to cart, saves...): never press it
+      const submits = await btn
+        .evaluate((el) => !!el.form && (el.type === 'submit' || (el.tagName === 'BUTTON' && !el.getAttribute('type'))), null, { timeout: 2000 })
+        .catch(() => true);
+      if (submits) continue;
+      await btn.click({ timeout: 3000 });
       await settle(page, 600);
       const after = normUrl(page.url(), page.url());
       if (after !== url) {
@@ -250,6 +278,7 @@ function fmtField(f) {
   if (f.placeholder && f.placeholder !== f.name) meta.push(`placeholder: ${f.placeholder}`);
   if (f.state) meta.push(f.state);
   if (meta.length) s += ` (${meta.join(', ')})`;
+  if (f.group) s += ` in ${f.group.role} "${f.group.name}"`;
   if (f.options) s += ` options: ${f.options.slice(0, 12).join(' | ')}${f.options.length > 12 ? ` | … (+${f.options.length - 12})` : ''}`;
   return s;
 }
@@ -286,9 +315,11 @@ function toMarkdown(map) {
   if (map.globalLinks.length) {
     L.push(`## Global menu (on every page)`);
     L.push(map.globalLinks.map((l) => `link "${l.name}" → ${l.url}`).join(' · '));
+    if (map.globalButtons?.length) L.push(map.globalButtons.map((b) => `button "${b}"`).join(' · '));
     L.push('');
   }
   const gl = new Set(map.globalLinks.map((l) => l.name));
+  const gb = new Set(map.globalButtons || []);
   for (const p of pages) {
     const title = p.headings[0] || p.title || shortPath(p.key, map.origin);
     L.push(`## ${title}  \`${shortPath(p.key, map.origin)}\``);
@@ -297,8 +328,13 @@ function toMarkdown(map) {
     if (p.headings.length > 1) L.push(`Headings: ${p.headings.join(' · ')}`);
     const links = p.links.filter((l) => !gl.has(l.name));
     fmtBlock(L, 'Links', links.slice(0, 20), (l) => `link "${l.name}"${l.url ? ` → ${l.url}` : ''}`);
-    fmtBlock(L, 'Buttons', p.buttons.filter((b) => !b.global).slice(0, 20), (b) => `button "${b.name}"`);
-    fmtBlock(L, 'Fields', p.fields, fmtField);
+    fmtBlock(L, 'Buttons', p.buttons.filter((b) => !b.global && !gb.has(b.name)).slice(0, 20), (b) => `button "${b.name}"`);
+    // same name twice on one page (a filter "Category" and a form "Category *"): say so, the
+    // storyboard then needs `within` to pick the right one
+    const norm = (n) => String(n ?? '').replace(/[\s\u00a0*:]+$/g, '').trim().toLowerCase();
+    const counts = new Map();
+    for (const f of p.fields) counts.set(norm(f.name), (counts.get(norm(f.name)) || 0) + 1);
+    fmtBlock(L, 'Fields', p.fields, (f) => fmtField(f) + (f.name && counts.get(norm(f.name)) > 1 ? ' — same name appears more than once on this page; target it with `within`' : ''));
     if (p.columns.length) L.push(`Table columns: ${p.columns.join(' | ')}`);
     for (const d of p.dialogs) {
       L.push(`Open dialog "${d.name ?? ''}":`);
@@ -389,10 +425,10 @@ async function main() {
     const visited = new Set();
     const patterns = new Map();
     if (args.only.length) {
-      for (const p of args.only) queue.push({ url: normUrl(p, project.baseUrl), via: map.pages[normUrl(p, project.baseUrl)]?.via ?? null });
+      for (const p of args.only) queue.push({ url: normUrl(p, project.baseUrl, true), via: map.pages[normUrl(p, project.baseUrl, true)]?.via ?? null });
     } else {
       queue.push({ url: normUrl(page.url(), page.url()), via: null });
-      for (const s of project.crawl.start || []) queue.push({ url: normUrl(s, project.baseUrl), via: null });
+      for (const s of project.crawl.start || []) queue.push({ url: normUrl(s, project.baseUrl, true), via: null });
     }
 
     let count = 0;
@@ -401,13 +437,13 @@ async function main() {
       if (visited.has(url)) continue;
       visited.add(url);
       try {
-        if (normUrl(page.url(), page.url()) !== url) await page.goto(url, { waitUntil: 'load', timeout: 20000 });
+        if (normUrl(page.url(), page.url(), args.only.length > 0) !== url) await page.goto(url, { waitUntil: 'load', timeout: 20000 });
         await settle(page, 400);
       } catch (e) {
         map.pages[url] = { key: url, via, order: order++, error: e.message.split('\n')[0], headings: [], links: [], buttons: [], fields: [], columns: [], dialogs: [] };
         continue;
       }
-      const key = normUrl(page.url(), page.url());
+      const key = normUrl(page.url(), page.url(), args.only.length > 0);
       if (key !== url && visited.has(key) && !args.only.length) continue; // a redirect to a page we already have
       visited.add(key);
       const info = await capturePage(page);
@@ -427,6 +463,8 @@ async function main() {
         let abs;
         try { abs = normUrl(n.href, key); } catch { continue; }
         if (!abs.startsWith(origin) || SKIP_EXT_RE.test(abs) || LOGOUT_RE.test(abs) || LOGOUT_RE.test(n.name)) continue;
+        // the raw href too: normUrl may have dropped the query that carries the action
+        if (ACTION_URL_RE.test(n.href) || (n.kind === 'link' && LINK_DANGER_RE.test(n.name || ''))) continue;
         if (exclude.some((x) => abs.toLowerCase().includes(x))) continue;
         if (visited.has(abs) || queue.some((q) => q.url === abs)) continue;
         const pat = patternOf(abs);
@@ -456,6 +494,9 @@ async function main() {
   map.globalLinks = [...freq.values()]
     .filter((x) => (pages.length >= 3 && x.n >= Math.ceil(pages.length * 0.6)) || (x.global && x.n >= 2))
     .map((x) => ({ name: x.l.name, url: x.l.url }));
+  const bfreq = new Map();
+  for (const p of pages) for (const name of new Set(p.buttons.map((b) => b.name))) bfreq.set(name, (bfreq.get(name) || 0) + 1);
+  map.globalButtons = pages.length >= 3 ? [...bfreq].filter(([, n]) => n >= Math.ceil(pages.length * 0.6)).map(([name]) => name) : [];
   map.generatedAt = new Date().toISOString();
 
   fs.writeFileSync(project.mapJson, JSON.stringify(map, null, 1));

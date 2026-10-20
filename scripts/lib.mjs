@@ -36,18 +36,28 @@ export function describeTarget(t) {
 // string -> visible text; object -> role/label/placeholder/text/testId/css (+ name, exact, nth, within, hasText)
 export function resolveTarget(page, t) {
   if (t === undefined || t === null) throw new Error('Target is not defined.');
-  if (typeof t === 'string') return page.getByText(t, { exact: false }).first();
+  if (typeof t === 'string') return page.getByText(t, { exact: false }).filter({ visible: true }).first();
   const scope = t.within ? resolveTarget(page, t.within) : page;
   let loc;
   if (t.role) loc = scope.getByRole(t.role, { name: t.name, exact: t.exact ?? false });
-  else if (t.label) loc = scope.getByLabel(t.label, { exact: t.exact ?? false });
+  else if (t.label) loc = scope.getByLabel(t.exact ? exactLabel(t.label) : t.label);
   else if (t.placeholder) loc = scope.getByPlaceholder(t.placeholder, { exact: t.exact ?? false });
   else if (t.text) loc = scope.getByText(t.text, { exact: t.exact ?? false });
   else if (t.testId) loc = scope.getByTestId(t.testId);
   else if (t.css) loc = scope.locator(t.css);
   else throw new Error(`A target needs one of these keys: ${TARGET_KEYS.join(', ')}`);
   if (t.hasText) loc = loc.filter({ hasText: t.hasText });
+  // Only visible elements: pages often hold hidden twins (a sign-up tab next to the sign-in
+  // form, mobile + desktop menus) and picking the hidden one would just time out.
+  loc = loc.filter({ visible: true });
   return typeof t.nth === 'number' ? loc.nth(t.nth) : loc.first();
+}
+
+// An "exact" label that still tolerates required markers and punctuation around it:
+// <label>Password&nbsp;<span aria-hidden="true">*</span></label> is the label "Password".
+function exactLabel(text) {
+  const esc = String(text).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^[\\s\\u00a0*]*${esc}[\\s\\u00a0*:：]*$`, 'i');
 }
 
 // If a dialog is open, looks for the target inside it first (topmost = last in the DOM),
@@ -55,16 +65,27 @@ export function resolveTarget(page, t) {
 // (e.g. filter boxes) from being picked. Disabled when `within` is given or
 // `global: true` is set.
 export async function locateTarget(page, t) {
-  if (t && typeof t === 'object' && (t.within || t.global)) return resolveTarget(page, t);
+  if (t && typeof t === 'object' && (t.within || t.global)) return preferExact(page, t);
   const dialogs = page.getByRole('dialog').or(page.getByRole('alertdialog'));
   const n = await dialogs.count().catch(() => 0);
   for (let i = n - 1; i >= 0; i--) {
     const d = dialogs.nth(i);
     if (!(await d.isVisible().catch(() => false))) continue;
-    const loc = resolveTarget(d, t);
+    const loc = await preferExact(d, t);
     if ((await loc.count().catch(() => 0)) > 0) return loc;
   }
-  return resolveTarget(page, t);
+  return preferExact(page, t);
+}
+
+// Names match as substrings, so "Publish" also hits a "Publish" panel's collapse toggle that
+// comes first in the page. Unless the storyboard says `exact`, an element whose name is
+// exactly the given text wins; otherwise fall back to the substring match.
+async function preferExact(scope, t) {
+  if (t && typeof t === 'object' && t.exact === undefined && ((t.role && t.name) || t.label || t.text)) {
+    const exact = resolveTarget(scope, { ...t, exact: true });
+    if ((await exact.count().catch(() => 0)) > 0) return exact;
+  }
+  return resolveTarget(scope, t);
 }
 
 // Fills "{{name}}" placeholders in the storyboard (setup/steps/teardown, every string).
@@ -129,23 +150,36 @@ async function covered(loc) {
     .catch(() => false);
 }
 
+// Finds the <option> a storyboard means. Labels are compared with whitespace normalized
+// (prices are often formatted with &nbsp;); if no label matches exactly, a part of the
+// label that matches exactly one option is enough (`option: Vinyl`). Returns its index in
+// el.options, or -1.
+function findOptionIndex(el, opt) {
+  const norm = (v) => String(v).replace(/[\s\u00a0]+/g, ' ').trim().toLowerCase();
+  const opts = [...el.options];
+  if (opt && typeof opt === 'object' && typeof opt.index === 'number') return opt.index < opts.length ? opt.index : -1;
+  if (opt && typeof opt === 'object' && opt.value !== undefined && opt.label === undefined) return opts.findIndex((o) => o.value === String(opt.value));
+  const want = norm(typeof opt === 'object' ? opt.label : opt);
+  let i = opts.findIndex((o) => norm(o.label) === want);
+  if (i < 0) i = opts.findIndex((o) => o.value === String(typeof opt === 'object' ? opt.label : opt));
+  if (i < 0) {
+    const partial = opts.map((o, k) => (norm(o.label).includes(want) ? k : -1)).filter((k) => k >= 0);
+    if (partial.length === 1) i = partial[0];
+  }
+  return i;
+}
+
 // A native <select> opens an OS popup that never shows up in the screencast, so the
 // video would show the value jumping without the list ever opening. While recording we
 // draw a look-alike list inside the page instead (top layer, so it sits above modal
 // dialogs), let the cursor travel to the option, then close it and set the real value.
 // Returns the list and target-option rects (viewport CSS px), or null if not possible.
-async function openFakeSelect(loc, opt) {
+async function openFakeSelect(loc, optIndex) {
   return loc
-    .evaluate((el, opt) => {
-      if (el.tagName !== 'SELECT' || el.multiple) return null;
+    .evaluate((el, optIndex) => {
+      if (el.tagName !== 'SELECT' || el.multiple || optIndex < 0) return null;
       const opts = [...el.options].filter((o) => !o.hidden);
-      let idx = -1;
-      if (opt && typeof opt === 'object' && typeof opt.index === 'number') idx = opts.indexOf(el.options[opt.index]);
-      else {
-        const want = typeof opt === 'object' ? opt.label ?? opt.value : String(opt);
-        idx = opts.findIndex((o) => o.label.trim() === String(want).trim());
-        if (idx < 0) idx = opts.findIndex((o) => o.value === String(want));
-      }
+      const idx = opts.indexOf(el.options[optIndex]);
       if (idx < 0) return null;
       const r = el.getBoundingClientRect();
       const cs = getComputedStyle(el);
@@ -182,7 +216,7 @@ async function openFakeSelect(loc, opt) {
       const lr = list.getBoundingClientRect();
       const tr = list.children[idx].getBoundingClientRect();
       return { index: idx, list: { x: lr.x, y: lr.y, w: lr.width, h: lr.height }, target: { x: tr.x, y: tr.y, w: tr.width, h: tr.height } };
-    }, opt)
+    }, optIndex)
     .catch(() => null);
 }
 
@@ -206,6 +240,28 @@ async function closeFakeSelect(page) {
       list.remove();
     })
     .catch(() => {});
+}
+
+// Custom-styled radios/checkboxes (card pickers, toggles) hide the real <input> and let
+// its <label> take the click. Clicking the input itself would time out, so aim at the
+// visible label instead, like a person would. Returns a locator for that label, or null.
+async function labelProxy(page, loc, timeout) {
+  // wait like the step would (not Playwright's 30 s default) — the target may not exist yet
+  await loc.waitFor({ state: 'attached', timeout }); // throws "not found" just like the step would
+  const info = await loc
+    .evaluate((el) => {
+      if (el.tagName !== 'INPUT' || !['radio', 'checkbox'].includes(el.type)) return null;
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const hidden = r.width * r.height < 64 || +cs.opacity < 0.1 || (hit && hit !== el);
+      if (!hidden) return null;
+      if (el.closest('label')) return { wrapped: true };
+      return el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`) ? { id: el.id } : null;
+    })
+    .catch(() => null);
+  if (!info) return null;
+  return info.wrapped ? loc.locator('xpath=ancestor::label[1]') : page.locator(`label[for="${info.id}"]`).first();
 }
 
 // Whether the clicked element submits a form, and its visible name (used for the sound decision).
@@ -250,7 +306,9 @@ export class Runner {
     await loc.waitFor({ state: 'visible', timeout: this.timeout });
     const vp = this.page.viewportSize();
     let b = await this.box(loc);
-    const inView = b.y >= 0 && b.y + b.h <= vp.height && b.x >= 0 && b.x + b.w <= vp.width;
+    // The bottom band is where captions sit: something there (a row just added to the end
+    // of a list, a field low on the page) is scrolled up so the video can show it.
+    const inView = b.y >= 0 && b.y + b.h <= vp.height * 0.86 && b.x >= 0 && b.x + b.w <= vp.width;
     // Even when on screen, a sticky header/footer (dialog footer, fixed header) may cover it
     // and the click would land on that bar. Scrolling it to the center fixes both.
     if (inView && !(await covered(loc))) return b;
@@ -355,7 +413,8 @@ export class Runner {
       case 'click':
       case 'check':
       case 'hover': {
-        const loc = await locateTarget(page, targetOf(step, action));
+        let loc = await locateTarget(page, targetOf(step, action));
+        if (action !== 'hover') loc = (await labelProxy(page, loc, this.timeout)) || loc;
         const b = await this.ensureInView(loc);
         await startFocus(b);
         const pt = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
@@ -374,10 +433,24 @@ export class Runner {
         const loc = await locateTarget(page, spec.target);
         const b = await this.ensureInView(loc);
         await startFocus(b);
-        // Click the right side of the field so the cursor doesn't cover the typed text, but not
-        // the last 40px (number spinners and clear/eye icons live there)
-        const pt = { x: b.x + Math.max(b.w * 0.5, Math.min(b.w * 0.8, b.w - 40)), y: b.y + b.h / 2 };
+        // Click the right side of the field so the cursor doesn't cover the typed text, but at a
+        // spot that really is the field: spinners, clear buttons and "show password" eyes sit on
+        // top of the right edge, and clicking those would leave the field without focus.
+        const fx = await loc
+          .evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            const y = r.top + r.height / 2;
+            for (const f of [0.8, 0.7, 0.6, 0.5, 0.35, 0.2]) {
+              const hit = document.elementFromPoint(r.left + r.width * f, y);
+              if (hit && (hit === el || el.contains(hit))) return f;
+            }
+            return 0.5;
+          })
+          .catch(() => 0.5);
+        const pt = { x: b.x + Math.min(b.w * fx, b.w - 12), y: b.y + b.h / 2 };
         await this.clickAt(loc, b, pt, 'field');
+        // make sure the typing lands in the field even if the click didn't focus it
+        if (!(await loc.evaluate((el) => el === document.activeElement || el.contains(document.activeElement)).catch(() => true))) await loc.focus();
         const inputType = await loc.evaluate((el) => (el.getAttribute('type') || el.tagName).toLowerCase()).catch(() => 'text');
         const value = String(spec.value);
         const t0 = now();
@@ -410,8 +483,13 @@ export class Runner {
         if (!this.fast) await sleep(p.preClickMs);
         this.log({ type: 'click', kind: 'field', x: this.cursor.x, y: this.cursor.y, box: b, t: now() });
         const opt = spec.option;
+        const optIndex = await loc.evaluate(new Function('el', 'opt', `return (${findOptionIndex.toString()})(el, opt)`), opt).catch(() => -1);
+        if (optIndex < 0) {
+          const labels = await loc.evaluate((el) => [...el.options].map((o) => o.label)).catch(() => []);
+          throw new Error(`Option ${JSON.stringify(opt)} not found (or ambiguous). Options: ${labels.map((l) => JSON.stringify(l)).join(', ')}`);
+        }
         // Show the list opening and the choice being made (see openFakeSelect)
-        const fake = this.fast ? null : await openFakeSelect(loc, opt);
+        const fake = this.fast ? null : await openFakeSelect(loc, optIndex);
         if (fake) {
           if (focusBox === b) {
             // auto zoom: frame the field and the open list together
@@ -428,7 +506,7 @@ export class Runner {
           await sleep(120);
           await closeFakeSelect(page);
         }
-        await loc.selectOption(typeof opt === 'object' ? opt : { label: String(opt) }, { timeout: this.timeout });
+        await loc.selectOption({ index: optIndex }, { timeout: this.timeout });
         await this.settle(urlBefore, p.postClickMs);
         break;
       }
@@ -513,19 +591,51 @@ export function findProjectDir(...starts) {
   return null;
 }
 
+function readEnvFile(file) {
+  if (!fs.existsSync(file)) return {};
+  const out = {};
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!m) continue;
+    out[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+  }
+  return out;
+}
+
+function fillEnv(value, env, dir) {
+  if (typeof value === 'string') {
+    return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, k) => {
+      if (env[k] === undefined) throw new Error(`\${${k}} is used in ${dir}/config.yaml but not set (add ${k}=... to ${dir}/.env or the environment).`);
+      return env[k];
+    });
+  }
+  if (Array.isArray(value)) return value.map((v) => fillEnv(v, env, dir));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, fillEnv(v, env, dir)]));
+  return value;
+}
+
 export function loadProject(dir) {
   if (!dir) return null;
-  const cfg = YAML.parse(fs.readFileSync(path.join(dir, 'config.yaml'), 'utf8')) || {};
+  // Secrets stay out of config.yaml: `value: ${DEMO_PASSWORD}` is filled from .demo-video/.env
+  // (KEY=value lines, git-ignored) or the environment.
+  const env = { ...readEnvFile(path.join(dir, '.env')), ...process.env };
+  const cfg = fillEnv(YAML.parse(fs.readFileSync(path.join(dir, 'config.yaml'), 'utf8')) || {}, env, dir);
   if (!cfg.baseUrl) throw new Error(`baseUrl is missing in ${dir}/config.yaml.`);
   // Keep the session cache and outputs out of git; config and storyboards may be committed.
   // Leave a .gitignore the user wrote alone.
   const gi = path.join(dir, '.gitignore');
-  if (!fs.existsSync(gi)) fs.writeFileSync(gi, 'auth.json\nout/\n');
+  if (!fs.existsSync(gi)) fs.writeFileSync(gi, 'auth.json\n.env\nout/\n');
+  else {
+    // ours from an older version (auth.json + out/): add .env, which came later
+    const cur = fs.readFileSync(gi, 'utf8');
+    if (/^auth\.json$/m.test(cur) && !/^\.env$/m.test(cur)) fs.appendFileSync(gi, (cur.endsWith('\n') ? '' : '\n') + '.env\n');
+  }
   return {
     dir,
     baseUrl: cfg.baseUrl,
     login: cfg.login || [],
     loginCheck: cfg.loginCheck || null, // optional: URL regex that identifies the login page
+    authCheck: cfg.authCheck || null, // optional: a page that needs login, used to check the session
     language: cfg.language,
     brandColor: cfg.brandColor || null, // overrides the detected app color ('#rrggbb')
     music: typeof cfg.music === 'boolean' ? cfg.music : null, // the user's answer to "background music?"; null = never asked
@@ -716,12 +826,21 @@ async function looksLikeLogin(page, project) {
 
 // Does nothing if the cached session is still valid; otherwise runs the login steps
 // in fast mode and writes the storageState to .demo-video/auth.json.
+// The session is checked on `authCheck` (a page that needs login, e.g. /wp-admin/) or the
+// base URL. Without a cache file the login always runs: a public home page (WordPress,
+// marketing sites) would otherwise look "logged in" and the login would be skipped.
 // Returns: 'cached' | 'logged-in' | 'no-login'
 export async function ensureAuth(page, context, project, style) {
   if (!project || !project.login.length) return 'no-login';
-  await page.goto(project.baseUrl, { waitUntil: 'load', timeout: 30000 });
-  await page.waitForLoadState('networkidle', { timeout: 4000 }).catch(() => {});
-  if (!(await looksLikeLogin(page, project))) return 'cached';
+  const checkUrl = project.authCheck ? new URL(project.authCheck, project.baseUrl).toString() : project.baseUrl;
+  const open = async () => {
+    await page.goto(checkUrl, { waitUntil: 'load', timeout: 30000 });
+    await page.waitForLoadState('networkidle', { timeout: 4000 }).catch(() => {});
+  };
+  if (fs.existsSync(project.authPath)) {
+    await open();
+    if (!(await looksLikeLogin(page, project))) return 'cached';
+  }
   const r = new Runner(page, style, { fast: true });
   r.baseUrl = project.baseUrl;
   for (const [i, s] of project.login.entries()) {
@@ -731,7 +850,11 @@ export async function ensureAuth(page, context, project, style) {
       throw new Error(`Login step ${i} (${actionOf(s)}) failed: ${e.message.split('\n')[0]}`);
     }
   }
+  // A submitted form navigates a moment later: wait until we're really off the sign-in page,
+  // otherwise the session cookie isn't set yet when we check it.
+  for (let i = 0; i < 20 && (await looksLikeLogin(page, project).catch(() => true)); i++) await sleep(500);
   await page.waitForLoadState('networkidle', { timeout: 4000 }).catch(() => {});
+  if (project.authCheck) await open(); // verify on the protected page, not wherever the form left us
   if (await looksLikeLogin(page, project)) throw new Error('The login steps ran but we are still on the sign-in page. Check the credentials/steps.');
   await context.storageState({ path: project.authPath });
   return 'logged-in';

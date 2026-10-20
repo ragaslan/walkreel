@@ -61,8 +61,8 @@ From your project root:
 
 ```bash
 node ~/.claude/skills/walkreel/scripts/discover.mjs                 # map the app (cached)
-node ~/.claude/skills/walkreel/scripts/record.mjs storyboard.yaml --out .demo-video/out/demo \
-  && python3 ~/.claude/skills/walkreel/scripts/render.py .demo-video/out/demo -o demo.mp4
+node ~/.claude/skills/walkreel/scripts/record.mjs .demo-video/storyboards/demo.yaml --out .demo-video/out/demo \
+  && python3 ~/.claude/skills/walkreel/scripts/render.py .demo-video/out/demo -o .demo-video/out/demo.mp4
 ```
 
 Add `--format vertical` or `--format square` to `record.mjs` for social clips.
@@ -102,7 +102,8 @@ cd examples && node ../scripts/record.mjs new-project.yaml --out .demo-video/out
 
 ## Good to know
 
-- **Test accounts only.** Login steps live in `.demo-video/config.yaml`; never put a real user's password there. The cached session (`auth.json`) and recordings are git-ignored automatically.
+- **Test accounts only.** Login steps live in `.demo-video/config.yaml`; the password goes in `.demo-video/.env` and is referenced as `${DEMO_PASSWORD}`. `.env`, the cached session (`auth.json`) and recordings are git-ignored automatically.
+- **Mapping is read-only.** The crawler opens "New/Add" dialogs to learn forms, but never presses submit, cart/buy/order or delete-like buttons and never follows action links.
 - **Recording creates real data.** Give storyboards that create records a `teardown:` so repeated runs don't pile up duplicates.
 - **Failures are explained.** A failed recording prints the failing step, an accessibility snapshot, a screenshot, and any requests still waiting for the server. It also refuses to render a stale previous recording.
 - **Your colors, automatically.** The app's main color is read from the page and the video's palette is derived from it; set `brandColor` in the config to override.

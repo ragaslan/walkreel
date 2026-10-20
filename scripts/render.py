@@ -276,6 +276,13 @@ class Camera:
             else:
                 groups.append([f])
 
+        # cursor moves (output time, scene point): the camera must not keep the cursor out of frame
+        moves = [(tmap.to_out(e["t0"]), scene.css_to_scene(*e["to"])) for e in events if e["type"] == "move"]
+
+        def inside(pt, cam, margin=0.9):
+            cx, cy, s = cam
+            return abs(pt[0] - cx) <= scene.W / (2 * s) * margin and abs(pt[1] - cy) <= scene.H / (2 * s) * margin
+
         keys = [(0.0, full)]
 
         def add(t, cam):
@@ -292,6 +299,12 @@ class Camera:
                 self.transitions.append((keys[-1][0], "pan"))
                 add(f[0] + pan, f[2])
             end = g[-1][1] + linger
+            # if the cursor heads somewhere outside the zoomed view (the next button), start
+            # zooming out as it leaves instead of after the linger
+            for tm, pt in moves:
+                if g[-1][1] - 0.05 <= tm < end and not inside(pt, g[-1][2]):
+                    end = max(tm, g[-1][0] + zin)
+                    break
             add(end, keys[-1][1])
             self.transitions.append((keys[-1][0], "zoom"))
             add(end + zout, full)
