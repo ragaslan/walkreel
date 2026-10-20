@@ -1,0 +1,462 @@
+{
+ "version": 1,
+ "baseUrl": "http://localhost:5173/",
+ "origin": "http://localhost:5173",
+ "generatedAt": "2026-10-20T15:55:24.633Z",
+ "login": "yes (session cached in .demo-video/auth.json)",
+ "pages": {
+  "http://localhost:5173/#/dashboard": {
+   "key": "http://localhost:5173/#/dashboard",
+   "via": null,
+   "order": 0,
+   "title": "Acme CRM",
+   "headings": [
+    "Welcome back"
+   ],
+   "links": [
+    {
+     "name": "▦ Dashboard",
+     "url": "#/dashboard",
+     "global": true
+    },
+    {
+     "name": "◉ Contacts",
+     "url": "#/contacts",
+     "global": true
+    },
+    {
+     "name": "▤ Projects",
+     "url": "#/projects",
+     "global": true
+    },
+    {
+     "name": "$ Invoices",
+     "url": "#/invoices",
+     "global": true
+    },
+    {
+     "name": "⎋ Sign out",
+     "url": "#/logout",
+     "global": true
+    }
+   ],
+   "buttons": [],
+   "fields": [],
+   "columns": [],
+   "dialogs": [],
+   "aria": "- complementary:\n  - navigation:\n    - text: Acme CRM\n    - link \"▦ Dashboard\":\n      - /url: \"#/dashboard\"\n    - link \"◉ Contacts\":\n      - /url: \"#/contacts\"\n    - link \"▤ Projects\":\n      - /url: \"#/projects\"\n    - link \"$ Invoices\":\n      - /url: \"#/invoices\"\n    - link \"⎋ Sign out\":\n      - /url: \"#/logout\"\n- main:\n  - heading \"Welcome back\" [level=1]\n  - text: You have 3 meetings and 2 overdue invoices today. Contacts 124 Revenue this month $48,200 Open projects 3 Recent activity\n  - paragraph: \"Invoice #1042 is overdue · Kickoff call with Northfield Labs scheduled\"\n- text: ✓",
+   "probes": []
+  },
+  "http://localhost:5173/#/contacts": {
+   "key": "http://localhost:5173/#/contacts",
+   "via": {
+    "from": "http://localhost:5173/#/dashboard",
+    "kind": "link",
+    "name": "◉ Contacts"
+   },
+   "order": 1,
+   "title": "Acme CRM",
+   "headings": [
+    "Contacts"
+   ],
+   "links": [
+    {
+     "name": "▦ Dashboard",
+     "url": "#/dashboard",
+     "global": true
+    },
+    {
+     "name": "◉ Contacts",
+     "url": "#/contacts",
+     "global": true
+    },
+    {
+     "name": "▤ Projects",
+     "url": "#/projects",
+     "global": true
+    },
+    {
+     "name": "$ Invoices",
+     "url": "#/invoices",
+     "global": true
+    },
+    {
+     "name": "⎋ Sign out",
+     "url": "#/logout",
+     "global": true
+    },
+    {
+     "name": "＋ New contact",
+     "url": "#/contacts/new",
+     "global": false
+    }
+   ],
+   "buttons": [
+    {
+     "name": "Filter",
+     "global": false
+    }
+   ],
+   "fields": [
+    {
+     "role": "textbox",
+     "name": "Search contacts..."
+    }
+   ],
+   "columns": [],
+   "dialogs": [],
+   "aria": "- complementary:\n  - navigation:\n    - text: Acme CRM\n    - link \"▦ Dashboard\":\n      - /url: \"#/dashboard\"\n    - link \"◉ Contacts\":\n      - /url: \"#/contacts\"\n    - link \"▤ Projects\":\n      - /url: \"#/projects\"\n    - link \"$ Invoices\":\n      - /url: \"#/invoices\"\n    - link \"⎋ Sign out\":\n      - /url: \"#/logout\"\n- main:\n  - heading \"Contacts\" [level=1]\n  - text: 4 contacts\n  - link \"＋ New contact\":\n    - /url: \"#/contacts/new\"\n  - textbox \"Search contacts...\"\n  - button \"Filter\"\n  - table:\n    - rowgroup:\n      - row \"Name Company Email Phone Status\":\n        - cell \"Name\"\n        - cell \"Company\"\n        - cell \"Email\"\n        - cell \"Phone\"\n        - cell \"Status\"\n    - rowgroup:\n      - row \"Olivia Bennett Brightline Studio olivia@brightline.example +1 415 555 0132 Active\":\n        - cell \"Olivia Bennett\"\n        - cell \"Brightline Studio\"\n        - cell \"olivia@brightline.example\"\n        - cell \"+1 415 555 0132\"\n        - cell \"Active\"\n      - row \"Marcus Reed Northfield Labs marcus@northfield.example +1 212 555 0187 Lead\":\n        - cell \"Marcus Reed\"\n        - cell \"Northfield Labs\"\n        - cell \"marcus@northfield.example\"\n        - cell \"+1 212 555 0187\"\n        - cell \"Lead\"\n      - row \"Hana Sato Kestrel Logistics hana@kestrel.example +1 312 555 0164 Active\":\n        - cell \"Hana Sato\"\n        - cell \"Kestrel Logistics\"\n        - cell \"hana@kestrel.example\"\n        - cell \"+1 312 555 0164\"\n        - cell \"Active\"\n      - row \"Diego Alvarez Brightline Studio diego@brightline.example +1 646 555 0119 Active\":\n        - cell \"Diego Alvarez\"\n        - cell \"Brightline Studio\"\n        - cell \"diego@brightline.example\"\n        - cell \"+1 646 555 0119\"\n        - cell \"Active\"\n- text: ✓",
+   "probes": []
+  },
+  "http://localhost:5173/#/projects": {
+   "key": "http://localhost:5173/#/projects",
+   "via": {
+    "from": "http://localhost:5173/#/dashboard",
+    "kind": "link",
+    "name": "▤ Projects"
+   },
+   "order": 2,
+   "title": "Acme CRM",
+   "headings": [
+    "Projects"
+   ],
+   "links": [
+    {
+     "name": "▦ Dashboard",
+     "url": "#/dashboard",
+     "global": true
+    },
+    {
+     "name": "◉ Contacts",
+     "url": "#/contacts",
+     "global": true
+    },
+    {
+     "name": "▤ Projects",
+     "url": "#/projects",
+     "global": true
+    },
+    {
+     "name": "$ Invoices",
+     "url": "#/invoices",
+     "global": true
+    },
+    {
+     "name": "⎋ Sign out",
+     "url": "#/logout",
+     "global": true
+    }
+   ],
+   "buttons": [
+    {
+     "name": "＋ New project",
+     "global": false
+    }
+   ],
+   "fields": [],
+   "columns": [],
+   "dialogs": [],
+   "aria": "- complementary:\n  - navigation:\n    - text: Acme CRM\n    - link \"▦ Dashboard\":\n      - /url: \"#/dashboard\"\n    - link \"◉ Contacts\":\n      - /url: \"#/contacts\"\n    - link \"▤ Projects\":\n      - /url: \"#/projects\"\n    - link \"$ Invoices\":\n      - /url: \"#/invoices\"\n    - link \"⎋ Sign out\":\n      - /url: \"#/logout\"\n- main:\n  - heading \"Projects\" [level=1]\n  - text: 3 active projects\n  - button \"＋ New project\"\n  - table:\n    - rowgroup:\n      - row \"Project Kickoff Owner Team size\":\n        - cell \"Project\"\n        - cell \"Kickoff\"\n        - cell \"Owner\"\n        - cell \"Team size\"\n    - rowgroup:\n      - row \"Website redesign Mon 09:30 Olivia Bennett 6\":\n        - cell \"Website redesign\"\n        - cell \"Mon 09:30\"\n        - cell \"Olivia Bennett\"\n        - cell \"6\"\n      - row \"Q4 onboarding Wed 14:00 Marcus Reed 4\":\n        - cell \"Q4 onboarding\"\n        - cell \"Wed 14:00\"\n        - cell \"Marcus Reed\"\n        - cell \"4\"\n      - row \"Warehouse rollout Fri 11:00 Hana Sato 9\":\n        - cell \"Warehouse rollout\"\n        - cell \"Fri 11:00\"\n        - cell \"Hana Sato\"\n        - cell \"9\"\n- text: ✓",
+   "probes": [
+    {
+     "button": "＋ New project",
+     "opens": "dialog",
+     "name": "New project",
+     "headings": [
+      "New project"
+     ],
+     "links": [],
+     "buttons": [
+      {
+       "name": "Cancel",
+       "global": false
+      },
+      {
+       "name": "Create project",
+       "global": false
+      }
+     ],
+     "fields": [
+      {
+       "role": "textbox",
+       "name": "Project name"
+      },
+      {
+       "role": "textbox",
+       "name": "Kickoff day",
+       "placeholder": "e.g. Mon"
+      },
+      {
+       "role": "textbox",
+       "name": "Time",
+       "type": "time"
+      },
+      {
+       "role": "textbox",
+       "name": "Team size"
+      },
+      {
+       "role": "combobox",
+       "name": "Owner",
+       "options": [
+        "Olivia Bennett",
+        "Marcus Reed",
+        "Hana Sato"
+       ]
+      }
+     ],
+     "columns": [],
+     "dialogs": []
+    }
+   ]
+  },
+  "http://localhost:5173/#/invoices": {
+   "key": "http://localhost:5173/#/invoices",
+   "via": {
+    "from": "http://localhost:5173/#/dashboard",
+    "kind": "link",
+    "name": "$ Invoices"
+   },
+   "order": 3,
+   "title": "Acme CRM",
+   "headings": [
+    "Invoices"
+   ],
+   "links": [
+    {
+     "name": "▦ Dashboard",
+     "url": "#/dashboard",
+     "global": true
+    },
+    {
+     "name": "◉ Contacts",
+     "url": "#/contacts",
+     "global": true
+    },
+    {
+     "name": "▤ Projects",
+     "url": "#/projects",
+     "global": true
+    },
+    {
+     "name": "$ Invoices",
+     "url": "#/invoices",
+     "global": true
+    },
+    {
+     "name": "⎋ Sign out",
+     "url": "#/logout",
+     "global": true
+    },
+    {
+     "name": "Download PDF",
+     "url": "#/invoices/report.pdf",
+     "global": false
+    },
+    {
+     "name": "Olivia Bennett",
+     "url": "#/contacts/101",
+     "global": false
+    },
+    {
+     "name": "Marcus Reed",
+     "url": "#/contacts/102",
+     "global": false
+    },
+    {
+     "name": "Hana Sato",
+     "url": "#/contacts/103",
+     "global": false
+    },
+    {
+     "name": "Diego Alvarez",
+     "url": "#/contacts/104",
+     "global": false
+    }
+   ],
+   "buttons": [],
+   "fields": [],
+   "columns": [],
+   "dialogs": [],
+   "aria": "- complementary:\n  - navigation:\n    - text: Acme CRM\n    - link \"▦ Dashboard\":\n      - /url: \"#/dashboard\"\n    - link \"◉ Contacts\":\n      - /url: \"#/contacts\"\n    - link \"▤ Projects\":\n      - /url: \"#/projects\"\n    - link \"$ Invoices\":\n      - /url: \"#/invoices\"\n    - link \"⎋ Sign out\":\n      - /url: \"#/logout\"\n- main:\n  - heading \"Invoices\" [level=1]\n  - text: October 2026\n  - link \"Download PDF\":\n    - /url: \"#/invoices/report.pdf\"\n  - table:\n    - rowgroup:\n      - row \"Contact Amount Status\":\n        - cell \"Contact\"\n        - cell \"Amount\"\n        - cell \"Status\"\n    - rowgroup:\n      - row \"Olivia Bennett $2,400 Paid\":\n        - cell \"Olivia Bennett\":\n          - link \"Olivia Bennett\":\n            - /url: \"#/contacts/101\"\n        - cell \"$2,400\"\n        - cell \"Paid\"\n      - row \"Marcus Reed $2,400 Due\":\n        - cell \"Marcus Reed\":\n          - link \"Marcus Reed\":\n            - /url: \"#/contacts/102\"\n        - cell \"$2,400\"\n        - cell \"Due\"\n      - row \"Hana Sato $2,400 Paid\":\n        - cell \"Hana Sato\":\n          - link \"Hana Sato\":\n            - /url: \"#/contacts/103\"\n        - cell \"$2,400\"\n        - cell \"Paid\"\n      - row \"Diego Alvarez $2,400 Paid\":\n        - cell \"Diego Alvarez\":\n          - link \"Diego Alvarez\":\n            - /url: \"#/contacts/104\"\n        - cell \"$2,400\"\n        - cell \"Paid\"\n- text: ✓",
+   "probes": []
+  },
+  "http://localhost:5173/#/contacts/new": {
+   "key": "http://localhost:5173/#/contacts/new",
+   "via": {
+    "from": "http://localhost:5173/#/contacts",
+    "kind": "link",
+    "name": "＋ New contact"
+   },
+   "order": 4,
+   "title": "Acme CRM",
+   "headings": [
+    "New contact"
+   ],
+   "links": [
+    {
+     "name": "▦ Dashboard",
+     "url": "#/dashboard",
+     "global": true
+    },
+    {
+     "name": "◉ Contacts",
+     "url": "#/contacts",
+     "global": true
+    },
+    {
+     "name": "▤ Projects",
+     "url": "#/projects",
+     "global": true
+    },
+    {
+     "name": "$ Invoices",
+     "url": "#/invoices",
+     "global": true
+    },
+    {
+     "name": "⎋ Sign out",
+     "url": "#/logout",
+     "global": true
+    },
+    {
+     "name": "Cancel",
+     "url": "#/contacts",
+     "global": false
+    }
+   ],
+   "buttons": [
+    {
+     "name": "Save",
+     "global": false
+    }
+   ],
+   "fields": [
+    {
+     "role": "textbox",
+     "name": "Full name"
+    },
+    {
+     "role": "textbox",
+     "name": "Email",
+     "type": "email"
+    },
+    {
+     "role": "combobox",
+     "name": "Company",
+     "options": [
+      "Select",
+      "Brightline Studio",
+      "Northfield Labs",
+      "Kestrel Logistics"
+     ]
+    },
+    {
+     "role": "combobox",
+     "name": "Status",
+     "options": [
+      "Lead",
+      "Active"
+     ]
+    },
+    {
+     "role": "textbox",
+     "name": "Follow-up date",
+     "type": "date"
+    },
+    {
+     "role": "textbox",
+     "name": "Phone",
+     "placeholder": "+1 555 000 0000",
+     "type": "tel"
+    },
+    {
+     "role": "textbox",
+     "name": "Deal value ($)"
+    },
+    {
+     "role": "textbox",
+     "name": "Notes",
+     "placeholder": "Optional"
+    }
+   ],
+   "columns": [],
+   "dialogs": [],
+   "aria": "- complementary:\n  - navigation:\n    - text: Acme CRM\n    - link \"▦ Dashboard\":\n      - /url: \"#/dashboard\"\n    - link \"◉ Contacts\":\n      - /url: \"#/contacts\"\n    - link \"▤ Projects\":\n      - /url: \"#/projects\"\n    - link \"$ Invoices\":\n      - /url: \"#/invoices\"\n    - link \"⎋ Sign out\":\n      - /url: \"#/logout\"\n- main:\n  - heading \"New contact\" [level=1]\n  - text: Add a person and link them to a company Full name\n  - textbox \"Full name\"\n  - text: Email\n  - textbox \"Email\"\n  - text: Company\n  - combobox \"Company\":\n    - option \"Select\" [selected]\n    - option \"Brightline Studio\"\n    - option \"Northfield Labs\"\n    - option \"Kestrel Logistics\"\n  - text: Status\n  - combobox \"Status\":\n    - option \"Lead\" [selected]\n    - option \"Active\"\n  - text: Follow-up Follow-up date\n  - textbox \"Follow-up date\"\n  - text: Phone\n  - textbox \"Phone\":\n    - /placeholder: +1 555 000 0000\n  - text: Deal value ($)\n  - textbox \"Deal value ($)\"\n  - text: Notes\n  - textbox \"Notes\":\n    - /placeholder: Optional\n  - link \"Cancel\":\n    - /url: \"#/contacts\"\n  - button \"Save\"\n- text: ✓",
+   "probes": []
+  },
+  "http://localhost:5173/#/contacts/101": {
+   "key": "http://localhost:5173/#/contacts/101",
+   "via": {
+    "from": "http://localhost:5173/#/invoices",
+    "kind": "link",
+    "name": "Olivia Bennett"
+   },
+   "order": 5,
+   "title": "Acme CRM",
+   "headings": [
+    "Olivia Bennett"
+   ],
+   "links": [
+    {
+     "name": "▦ Dashboard",
+     "url": "#/dashboard",
+     "global": true
+    },
+    {
+     "name": "◉ Contacts",
+     "url": "#/contacts",
+     "global": true
+    },
+    {
+     "name": "▤ Projects",
+     "url": "#/projects",
+     "global": true
+    },
+    {
+     "name": "$ Invoices",
+     "url": "#/invoices",
+     "global": true
+    },
+    {
+     "name": "⎋ Sign out",
+     "url": "#/logout",
+     "global": true
+    }
+   ],
+   "buttons": [
+    {
+     "name": "Delete contact",
+     "global": false
+    }
+   ],
+   "fields": [],
+   "columns": [],
+   "dialogs": [],
+   "aria": "- complementary:\n  - navigation:\n    - text: Acme CRM\n    - link \"▦ Dashboard\":\n      - /url: \"#/dashboard\"\n    - link \"◉ Contacts\":\n      - /url: \"#/contacts\"\n    - link \"▤ Projects\":\n      - /url: \"#/projects\"\n    - link \"$ Invoices\":\n      - /url: \"#/invoices\"\n    - link \"⎋ Sign out\":\n      - /url: \"#/logout\"\n- main:\n  - heading \"Olivia Bennett\" [level=1]\n  - text: Brightline Studio\n  - button \"Delete contact\"\n  - paragraph: olivia@brightline.example · +1 415 555 0132\n- text: ✓",
+   "probes": []
+  }
+ },
+ "globalLinks": [
+  {
+   "name": "▦ Dashboard",
+   "url": "#/dashboard"
+  },
+  {
+   "name": "◉ Contacts",
+   "url": "#/contacts"
+  },
+  {
+   "name": "▤ Projects",
+   "url": "#/projects"
+  },
+  {
+   "name": "$ Invoices",
+   "url": "#/invoices"
+  },
+  {
+   "name": "⎋ Sign out",
+   "url": "#/logout"
+  }
+ ]
+}

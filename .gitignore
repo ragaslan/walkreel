@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+# per-project runtime files (session cache, recordings)
+.demo-video/auth.json
+.demo-video/out/
+examples/.demo-video/auth.json
+examples/.demo-video/out/
+*.mp4
+*.gif

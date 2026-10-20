@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme CRM</title>
+<style>
+  :root{--bg:#f6f7fb;--card:#fff;--line:#e6e8ef;--text:#171a2b;--muted:#6b7187;--brand:#2563eb;--brand-2:#1d4ed8;--ok:#16a34a;--warn:#d97706}
+  *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+  a{color:inherit;text-decoration:none}
+  .app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+  aside{background:#0f172a;color:#cbd5e1;padding:22px 16px;display:flex;flex-direction:column;gap:4px}
+  .logo{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:18px;margin:0 8px 22px}
+  .logo i{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#22c55e,#2563eb);display:block}
+  aside a{padding:10px 12px;border-radius:9px;display:flex;gap:10px;align-items:center;font-weight:500}
+  aside a:hover{background:#1e293b;color:#fff} aside a.active{background:#1e3a8a;color:#fff}
+  aside .ic{width:18px;text-align:center;opacity:.85}
+  main{padding:28px 36px}
+  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+  h1{font-size:24px;margin:0} .sub{color:var(--muted);margin-top:4px}
+  .btn{border:0;border-radius:10px;padding:10px 16px;font:600 14px Inter,system-ui;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+  .btn.primary{background:var(--brand);color:#fff} .btn.primary:hover{background:var(--brand-2)}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--text)}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .kpi .v{font-size:28px;font-weight:700;margin-top:6px} .kpi .l{color:var(--muted);font-size:13px}
+  table{width:100%;border-collapse:collapse} th,td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line)}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+  tr.new td{background:#ecfdf5;transition:background 2s}
+  .pill{font-size:12px;padding:3px 9px;border-radius:99px;font-weight:600}
+  .pill.ok{background:#dcfce7;color:#166534} .pill.wait{background:#fef3c7;color:#92400e}
+  .toolbar{display:flex;gap:10px;margin-bottom:14px} .toolbar input{flex:1;max-width:320px}
+  input,select,textarea{width:100%;border:1px solid #d5d9e4;border-radius:10px;padding:11px 12px;font:15px Inter,system-ui;background:#fff;color:var(--text)}
+  input:focus,select:focus,textarea:focus{outline:2px solid #bfdbfe;border-color:var(--brand)}
+  label{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:#334155}
+  .form{max-width:900px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 20px}
+  .full{grid-column:1/-1} .section{font-weight:700;margin:6px 0 2px;grid-column:1/-1;color:#0f172a;border-top:1px solid var(--line);padding-top:16px}
+  .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+  .toast{position:fixed;right:28px;bottom:28px;background:#0f172a;color:#fff;padding:14px 18px;border-radius:12px;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.2);transform:translateY(20px);opacity:0;transition:all .3s}
+  .toast.show{transform:none;opacity:1} .toast b{color:#4ade80}
+  .login{min-height:100vh;display:grid;place-items:center;background:linear-gradient(135deg,#0f172a,#1e3a8a)}
+  .login .card{width:400px;padding:30px} .login h1{margin-bottom:6px}
+  .login form{display:grid;gap:14px;margin-top:18px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toast" id="toast"><b>✓</b><span id="toastText"></span></div>
+<script>
+// Example app for walkreel: fictional data, no backend, state lives in sessionStorage.
+const seed = [
+  {name:'Olivia Bennett', company:'Brightline Studio', email:'olivia@brightline.example', phone:'+1 415 555 0132', status:'Active'},
+  {name:'Marcus Reed', company:'Northfield Labs', email:'marcus@northfield.example', phone:'+1 212 555 0187', status:'Lead'},
+  {name:'Hana Sato', company:'Kestrel Logistics', email:'hana@kestrel.example', phone:'+1 312 555 0164', status:'Active'},
+  {name:'Diego Alvarez', company:'Brightline Studio', email:'diego@brightline.example', phone:'+1 646 555 0119', status:'Active'},
+];
+let contacts = JSON.parse(sessionStorage.getItem('contacts') || 'null') || seed.slice();
+let lastAdded = null;
+const save = () => sessionStorage.setItem('contacts', JSON.stringify(contacts));
+const root = document.getElementById('root');
+
+function shell(active, inner){
+  const nav = [['dashboard','▦','Dashboard'],['contacts','◉','Contacts'],['projects','▤','Projects'],['invoices','$','Invoices']];
+  return `<div class="app"><aside><nav style="display:flex;flex-direction:column;gap:4px"><div class="logo"><i></i>Acme CRM</div>
+    ${nav.map(([k,ic,l])=>`<a href="#/${k}" class="${active===k?'active':''}"><span class="ic">${ic}</span>${l}</a>`).join('')}
+    <a href="#/logout" style="margin-top:24px;opacity:.7"><span class="ic">⎋</span>Sign out</a></nav>
+    </aside><main>${inner}</main></div>`;
+}
+function login(){
+  root.innerHTML = `<div class="login"><div class="card"><h1>Sign in</h1><div class="sub">Acme CRM workspace</div>
+  <form id="lf"><div><label for="em">Email</label><input id="em" type="email"></div>
+  <div><label for="pw">Password</label><input id="pw" type="password"></div>
+  <button class="btn primary" type="submit">Sign in</button></form></div></div>`;
+  document.getElementById('lf').onsubmit = e => { e.preventDefault();
+    if (document.getElementById('em').value && document.getElementById('pw').value) { localStorage.setItem('auth','1'); location.hash = '#/dashboard'; } };
+}
+function dashboard(){
+  root.innerHTML = shell('dashboard', `<header class="top"><div><h1>Welcome back</h1><div class="sub">You have 3 meetings and 2 overdue invoices today.</div></div></header>
+  <div class="cards"><div class="card kpi"><div class="l">Contacts</div><div class="v">${120+contacts.length}</div></div>
+  <div class="card kpi"><div class="l">Revenue this month</div><div class="v">$48,200</div></div>
+  <div class="card kpi"><div class="l">Open projects</div><div class="v">3</div></div></div>
+  <div class="card"><b>Recent activity</b><p class="sub">Invoice #1042 is overdue · Kickoff call with Northfield Labs scheduled</p></div>`);
+}
+function list(){
+  root.innerHTML = shell('contacts', `<header class="top"><div><h1>Contacts</h1><div class="sub">${contacts.length} contacts</div></div>
+  <a class="btn primary" href="#/contacts/new">＋ New contact</a></header>
+  <div class="toolbar"><input placeholder="Search contacts..."><button class="btn ghost">Filter</button></div>
+  <div class="card" style="padding:0"><table><thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Status</th></tr></thead>
+  <tbody>${contacts.map(c=>`<tr class="${c===lastAdded?'new':''}"><td><b>${c.name}</b></td><td>${c.company}</td><td>${c.email}</td><td>${c.phone}</td>
+  <td><span class="pill ${c.status==='Active'?'ok':'wait'}">${c.status}</span></td></tr>`).join('')}</tbody></table></div>`);
+}
+function form(){
+  root.innerHTML = shell('contacts', `<header class="top"><div><h1>New contact</h1><div class="sub">Add a person and link them to a company</div></div></header>
+  <form class="card form" id="cf"><div class="grid">
+   <div><label for="nm">Full name</label><input id="nm" required></div>
+   <div><label for="ce">Email</label><input id="ce" type="email"></div>
+   <div><label for="co">Company</label><select id="co"><option value="">Select</option><option>Brightline Studio</option><option>Northfield Labs</option><option>Kestrel Logistics</option></select></div>
+   <div><label for="st">Status</label><select id="st"><option>Lead</option><option>Active</option></select></div>
+   <div class="section">Follow-up</div>
+   <div><label for="fd">Follow-up date</label><input id="fd" type="date"></div>
+   <div><label for="ph">Phone</label><input id="ph" type="tel" placeholder="+1 555 000 0000"></div>
+   <div><label for="dv">Deal value ($)</label><input id="dv" inputmode="numeric"></div>
+   <div><label for="nt">Notes</label><input id="nt" placeholder="Optional"></div>
+  </div><div class="actions"><a class="btn ghost" href="#/contacts">Cancel</a><button class="btn primary" type="submit">Save</button></div></form>`);
+  document.getElementById('cf').onsubmit = e => {
+    e.preventDefault();
+    const v = id => document.getElementById(id).value;
+    lastAdded = {name:v('nm'), company:v('co')||'-', email:v('ce'), phone:v('ph'), status:v('st')};
+    contacts.unshift(lastAdded); save();
+    location.hash = '#/contacts';
+    setTimeout(()=>toast('Contact saved'), 150);
+  };
+}
+const projects=[{name:'Website redesign',when:'Mon 09:30',owner:'Olivia Bennett',team:6},{name:'Q4 onboarding',when:'Wed 14:00',owner:'Marcus Reed',team:4},{name:'Warehouse rollout',when:'Fri 11:00',owner:'Hana Sato',team:9}];
+function projectsPage(){
+  root.innerHTML = shell('projects', `<header class="top"><div><h1>Projects</h1><div class="sub">${projects.length} active projects</div></div>
+  <button class="btn primary" id="np">＋ New project</button></header>
+  <div class="card" style="padding:0"><table><thead><tr><th>Project</th><th>Kickoff</th><th>Owner</th><th>Team size</th></tr></thead>
+  <tbody>${projects.map(p=>`<tr><td><b>${p.name}</b></td><td>${p.when}</td><td>${p.owner}</td><td>${p.team}</td></tr>`).join('')}</tbody></table></div>
+  <div id="modal" role="dialog" aria-modal="true" aria-labelledby="mt" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);display:grid;place-items:center">
+   <form class="card" style="width:520px" id="pf"><h2 id="mt" style="margin-top:0">New project</h2>
+   <div class="grid"><div class="full"><label for="pn">Project name</label><input id="pn"></div>
+   <div><label for="pd">Kickoff day</label><input id="pd" placeholder="e.g. Mon"></div>
+   <div><label for="pt">Time</label><input id="pt" type="time"></div>
+   <div><label for="ps">Team size</label><input id="ps" inputmode="numeric"></div>
+   <div><label for="po">Owner</label><select id="po"><option>Olivia Bennett</option><option>Marcus Reed</option><option>Hana Sato</option></select></div></div>
+   <div class="actions"><button type="button" class="btn ghost" id="pc">Cancel</button><button class="btn primary">Create project</button></div></form></div>`);
+  const m=document.getElementById('modal');
+  document.getElementById('np').onclick=()=>{m.hidden=false; m.style.display='grid'};
+  document.getElementById('pc').onclick=()=>{m.hidden=true; m.style.display='none'};
+  m.style.display='none';
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){m.hidden=true;m.style.display='none'}});
+  document.getElementById('pf').onsubmit=e=>{e.preventDefault();projects.push({name:pn.value,when:pd.value+' '+pt.value,owner:po.value,team:ps.value});projectsPage();setTimeout(()=>toast('Project created'),100)};
+}
+function invoices(){
+  root.innerHTML = shell('invoices', `<header class="top"><div><h1>Invoices</h1><div class="sub">October 2026</div></div><a class="btn ghost" href="#/invoices/report.pdf">Download PDF</a></header>
+  <div class="card" style="padding:0"><table><thead><tr><th>Contact</th><th>Amount</th><th>Status</th></tr></thead>
+  <tbody>${contacts.map(c=>`<tr><td><a href="#/contacts/${contacts.indexOf(c)+101}"><b>${c.name}</b></a></td><td>$2,400</td><td><span class="pill ${c.status==='Active'?'ok':'wait'}">${c.status==='Active'?'Paid':'Due'}</span></td></tr>`).join('')}</tbody></table></div>`);
+}
+function detail(id){
+  const c=contacts[id-101]||contacts[0];
+  root.innerHTML = shell('contacts', `<header class="top"><div><h1>${c.name}</h1><div class="sub">${c.company}</div></div><button class="btn ghost">Delete contact</button></header>
+  <div class="card"><p>${c.email} · ${c.phone}</p></div>`);
+}
+function toast(t){ const el=document.getElementById('toast'); document.getElementById('toastText').textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'), 3500); }
+function route(){
+  const h = location.hash || (localStorage.getItem('auth') ? '#/dashboard' : '#/login');
+  if (h==='#/logout') { localStorage.removeItem('auth'); location.hash='#/login'; return; }
+  if (h!=='#/login' && !localStorage.getItem('auth')) { location.hash='#/login'; return; }
+  const dm = h.match(/^#\/contacts\/(\d+)$/);
+  if (dm) return detail(+dm[1]);
+  if (h==='#/projects') return projectsPage();
+  if (h==='#/invoices') return invoices();
+  if (h==='#/login') login(); else if (h==='#/dashboard') dashboard(); else if (h==='#/contacts') list(); else if (h==='#/contacts/new') form(); else dashboard();
+}
+window.addEventListener('hashchange', route); route();
+</script>
+</body>
+</html>

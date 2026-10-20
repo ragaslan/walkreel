@@ -1,0 +1,25 @@
+# Example storyboard: Acme CRM - add a contact (baseUrl and login come from .demo-video/config.yaml)
+title: Adding a new contact
+subtitle: Acme CRM
+steps:
+  - goto: "#/dashboard"
+    caption: Start from the dashboard
+  - click: { role: link, name: Contacts }
+    caption: Open Contacts from the sidebar
+  - click: { role: link, name: New contact }
+    caption: Click New contact
+  - type: { target: { label: Full name }, value: Priya Raman }
+    caption: Enter the name and email
+  - type: { target: { label: Email }, value: priya@kestrel.example }
+  - select: { target: { label: Company }, option: Kestrel Logistics }
+    caption: Pick the company and status
+  - select: { target: { label: Status }, option: Active }
+  - type: { target: { label: Follow-up date }, value: "2026-11-03" }
+    caption: Schedule a follow-up
+  - type: { target: { label: Deal value }, value: "12000" }
+  - click: { role: button, name: Save }
+    caption: Save the contact
+  - waitFor: { text: Contact saved }
+    zoom: { role: cell, name: Priya Raman }
+    caption: The contact is in the list
+    hold: 600

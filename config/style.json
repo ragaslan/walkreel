@@ -1,0 +1,150 @@
+{
+  "language": "en",
+
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "crf": 18,
+    "gif": false
+  },
+
+  "capture": {
+    "viewport": { "width": 1440, "height": 810 },
+    "deviceScaleFactor": 2,
+    "jpegQuality": 88,
+    "hideScrollbars": true
+  },
+
+  "pacing": {
+    "cursorMinMs": 380,
+    "cursorMaxMs": 800,
+    "cursorMsPerPx": 0.45,
+    "preClickMs": 180,
+    "postClickMs": 500,
+    "typeDelayMs": 55,
+    "typeSpeedup": 2.2,
+    "maxWaitMs": 350,
+    "stepGapMs": 250,
+    "startHoldMs": 700,
+    "endHoldMs": 1500
+  },
+
+  "camera": {
+    "zoomInMs": 650,
+    "zoomOutMs": 550,
+    "panMs": 550,
+    "lingerMs": 450,
+    "joinGapMs": 900,
+    "maxZoom": 2.0,
+    "minZoom": 1.3,
+    "focusPadding": 150,
+    "autoZoomActions": ["type", "select"]
+  },
+
+  "frame": {
+    "padding": 56,
+    "cornerRadius": 16,
+    "background": { "from": "#1e1b4b", "to": "#4f46e5", "angle": 135 },
+    "shadow": { "blur": 60, "opacity": 0.45, "offsetY": 22 },
+    "browserBar": {
+      "enabled": true,
+      "height": 40,
+      "color": "#f4f4f5",
+      "urlBg": "#ffffff",
+      "textColor": "#52525b",
+      "displayUrl": null,
+      "dots": ["#ff5f57", "#febc2e", "#28c840"]
+    }
+  },
+
+  "cursor": {
+    "size": 30,
+    "fill": "#111111",
+    "outline": "#ffffff",
+    "zoomScaling": 0.5,
+    "pressScale": 0.82,
+    "pressMs": 160
+  },
+
+  "click": {
+    "color": "#818cf8",
+    "maxRadius": 36,
+    "durationMs": 480
+  },
+
+  "captions": {
+    "enabled": true,
+    "fontSize": 34,
+    "textColor": "#ffffff",
+    "bgColor": "#0b0b14",
+    "bgOpacity": 0.78,
+    "paddingX": 30,
+    "paddingY": 16,
+    "radius": 16,
+    "bottomMargin": 44,
+    "maxWidth": 1400,
+    "fadeMs": 220
+  },
+
+  "titleCard": {
+    "enabled": true,
+    "durationMs": 1500,
+    "transitionMs": 450
+  },
+
+  "outro": {
+    "fadeMs": 400
+  },
+
+  "sfx": {
+    "enabled": true,
+    "clicks": "submit",
+    "whoosh": "intro",
+    "clickVolume": 0.5,
+    "whooshVolume": 0.2
+  },
+
+  "format": "landscape",
+  "formats": {
+    "landscape": {},
+    "vertical": {
+      "output": { "width": 1080, "height": 1920 },
+      "capture": { "viewport": { "width": 430, "height": 700 }, "deviceScaleFactor": 3 },
+      "frame": { "padding": 40, "captionSpace": 250 },
+      "camera": { "maxZoom": 1.1, "minZoom": 1.04, "focusPadding": 30 },
+      "captions": { "fontSize": 42, "maxWidth": 960, "bottomMargin": 70 }
+    },
+    "square": {
+      "output": { "width": 1080, "height": 1080 },
+      "capture": { "viewport": { "width": 900, "height": 820 } },
+      "camera": { "maxZoom": 1.5, "focusPadding": 80 },
+      "captions": { "fontSize": 32, "maxWidth": 940, "bottomMargin": 40 }
+    }
+  },
+
+  "music": {
+    "enabled": true,
+    "volume": 0.4,
+    "fadeInMs": 800,
+    "fadeOutMs": 1800
+  },
+
+  "i18n": {
+    "tr": {
+      "kicker": "Nasıl yapılır?",
+      "locale": "tr-TR",
+      "submitWords": ["kaydet", "gönder", "oluştur", "onayla", "tamamla", "giriş yap", "kayıt ol", "öde", "satın al", "yayınla"]
+    },
+    "en": {
+      "kicker": "How it works",
+      "locale": "en-US",
+      "submitWords": ["save", "submit", "send", "create", "confirm", "done", "finish", "sign in", "log in", "sign up", "pay", "publish"]
+    },
+    "de": {
+      "kicker": "So funktioniert's",
+      "locale": "de-DE",
+      "submitWords": ["speichern", "senden", "absenden", "erstellen", "bestätigen", "fertig", "anmelden", "registrieren", "bezahlen", "veröffentlichen"]
+    }
+  }
+}

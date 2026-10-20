@@ -1,0 +1,24 @@
+# Example storyboard: Acme CRM - create a project in a modal dialog.
+# Targets inside an open dialog are found automatically (no `within` needed).
+title: Creating a project
+subtitle: Acme CRM
+vars:
+  project: Mobile app launch          # reused below; for real apps also use it in `teardown:`
+steps:
+  - goto: "#/projects"
+    caption: Open Projects
+  - click: { role: button, name: "＋ New project" }
+    caption: Click New project
+  - type: { target: { label: Project name }, value: "{{project}}" }
+    caption: Name the project and set the kickoff
+  - type: { target: { label: Kickoff day }, value: Tue }
+  - type: { target: { label: Time }, value: "10:30" }
+  - type: { target: { label: Team size }, value: "5" }
+    caption: Set the team size and owner
+  - select: { target: { label: Owner }, option: Marcus Reed }
+  - click: { role: button, name: Create project }
+    caption: Create the project
+  - waitFor: { text: Project created }
+    zoom: { role: cell, name: "{{project}}" }
+    caption: The new project is listed
+    hold: 500

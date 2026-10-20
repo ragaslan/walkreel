@@ -1,0 +1,15 @@
+# One per project: where the app runs and how to sign in with a TEST account.
+# Serve the example first:  python3 -m http.server 5173 -d examples/mock-app
+baseUrl: http://localhost:5173/
+language: en
+displayUrl: app.acme.example        # shown in the video's address bar instead of localhost
+login:
+  - goto: "#/login"
+  - type: { target: { label: Email }, value: demo@acme.example }
+  - type: { target: { label: Password }, value: demo1234 }
+  - click: { role: button, name: Sign in }
+  - waitFor: { url: "#/dashboard" }
+# hide: [".cookie-banner", "#chat-widget"]   # elements to keep out of the video
+crawl:
+  maxPages: 25
+  exclude: [.pdf, "#/logout"]
