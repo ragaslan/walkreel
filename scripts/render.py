@@ -15,6 +15,7 @@ Usage:
   python3 scripts/render.py <recording_dir> -o video.mp4 [--style override.json] [--gif] [--stills dir]
 """
 import argparse
+import colorsys
 import json
 import math
 import re
@@ -115,6 +116,51 @@ def alpha_blend_patch(dst, x, y, rgba, alpha_mul=1.0):
 def pil_to_bgra(img):
     arr = np.array(img.convert("RGBA"))
     return arr[..., [2, 1, 0, 3]].copy()
+
+
+# ------------------------------------------------------------------ brand palette
+NEUTRAL = {"from": "#0f172a", "to": "#334155", "click": "#94a3b8", "kicker": "#cbd5e1"}
+
+
+def _hls_hex(h, l, s):
+    r, g, b = colorsys.hls_to_rgb(h % 1.0, min(max(l, 0), 1), min(max(s, 0), 1))
+    return "#%02x%02x%02x" % (round(r * 255), round(g * 255), round(b * 255))
+
+
+def brand_palette(color):
+    """Background gradient, click ring and kicker tint derived from the app's main color.
+
+    The background is always deep (white title text stays readable whatever the brand
+    color is): same hue, low lightness. The click ring and the kicker are lighter tints.
+    """
+    if not color:
+        return NEUTRAL
+    r, g, b = hex_rgb(color)
+    h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+    if s < 0.15:
+        return NEUTRAL
+    s = min(max(s, 0.35), 0.78)
+    return {
+        "from": _hls_hex(h - 0.015, 0.10, s * 0.75),
+        "to": _hls_hex(h + 0.015, 0.30, s),
+        "click": _hls_hex(h, 0.64, min(s + 0.1, 0.9)),
+        "kicker": _hls_hex(h, 0.84, min(s, 0.7)),
+    }
+
+
+def apply_brand(style, brand):
+    """Fills every "auto" color in the style from the recorded brand color."""
+    pal = brand_palette((brand or {}).get("color"))
+    bg = style["frame"]["background"]
+    for k in ("from", "to"):
+        if bg.get(k, "auto") == "auto":
+            bg[k] = pal[k]
+    if style["click"].get("color", "auto") == "auto":
+        style["click"]["color"] = pal["click"]
+    tc = style["titleCard"]
+    if tc.get("kickerColor", "auto") == "auto":
+        tc["kickerColor"] = pal["kicker"]
+    return style
 
 
 # ------------------------------------------------------------------ time mapping
@@ -397,12 +443,13 @@ def make_title_card(scene, style, title, subtitle, kicker):
     S = 2
     big = Image.new("RGBA", (scene.W * S, scene.H * S), (0, 0, 0, 0))
     d = ImageDraw.Draw(big)
-    fk = font("semibold", 30 * S)
-    fs = font("medium", 28 * S)
+    tc = style["titleCard"]
+    fk = font("semibold", tc.get("kickerSize", 36) * S)
+    fs = font("medium", tc.get("subtitleSize", 50) * S)
     cx, cy = scene.W * S / 2, scene.H * S / 2
     # title: at most 3 lines, shrinks if it doesn't fit (vertical/square output, long titles)
     max_w = scene.W * 0.84 * S
-    size = 88
+    size = tc.get("titleSize", 96)
     while True:
         ft = font("bold", size * S)
         lines = wrap_lines(title, ft, max_w, d)
@@ -414,9 +461,9 @@ def make_title_card(scene, style, title, subtitle, kicker):
     for i, l in enumerate(lines):
         d.text((cx, cy - block / 2 + lh * (i + 0.5)), l, font=ft, fill=(255, 255, 255, 255), anchor="mm")
     if kicker:
-        d.text((cx, cy - block / 2 - 46 * S), kicker, font=fk, fill=(199, 210, 254, 255), anchor="mm")
+        d.text((cx, cy - block / 2 - 58 * S), kicker, font=fk, fill=hex_rgb(tc["kickerColor"]) + (255,), anchor="mm")
     if subtitle:
-        d.text((cx, cy + block / 2 + 40 * S), subtitle, font=fs, fill=(255, 255, 255, 170), anchor="mm")
+        d.text((cx, cy + block / 2 + 62 * S), subtitle, font=fs, fill=(255, 255, 255, 215), anchor="mm")
     big = big.resize((scene.W, scene.H), Image.LANCZOS)
     img = Image.alpha_composite(img, big)
     return cv2.cvtColor(np.array(img.convert("RGB")), cv2.COLOR_RGB2BGR), bg
@@ -517,7 +564,7 @@ def music_bed(n, sr, cfg):
     fin, fout = cfg.get("fadeInMs", 800) / 1000, cfg.get("fadeOutMs", 1800) / 1000
     env = np.minimum(1, t / max(fin, 1e-3)) * np.clip((n / sr - t) / max(fout, 1e-3), 0, 1)
     env = env ** 1.5  # sounds more natural than a linear fade
-    return bed * env[:, None] * cfg.get("volume", 0.4)
+    return bed * env[:, None] * cfg.get("volume", 0.057)
 
 
 def build_audio(path, duration, clicks, whooshes, style, sr=48000):
@@ -591,6 +638,7 @@ def main():
     ap.add_argument("-o", "--output", required=True)
     ap.add_argument("--style", help="Partial style override JSON for rendering only (no re-recording needed)")
     ap.add_argument("--gif", action="store_true", help="Also write a GIF")
+    ap.add_argument("--music", choices=["on", "off"], help="Turn the background music on/off without re-recording")
     ap.add_argument("--stills", help="Write a few frames as PNG to this folder for checking")
     args = ap.parse_args()
 
@@ -602,6 +650,9 @@ def main():
     style = tl["style"]
     if args.style:
         style = deep_merge(style, json.load(open(args.style, encoding="utf-8")))
+    if args.music:
+        style.setdefault("music", {})["enabled"] = args.music == "on"
+    style = apply_brand(style, tl.get("brand"))
     events = tl["events"]
     o = style["output"]
     W, H, fps = o["width"], o["height"], o["fps"]

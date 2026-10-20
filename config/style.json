@@ -45,7 +45,7 @@
   "frame": {
     "padding": 56,
     "cornerRadius": 16,
-    "background": { "from": "#1e1b4b", "to": "#4f46e5", "angle": 135 },
+    "background": { "from": "auto", "to": "auto", "angle": 135 },
     "shadow": { "blur": 60, "opacity": 0.45, "offsetY": 22 },
     "browserBar": {
       "enabled": true,
@@ -68,7 +68,7 @@
   },
 
   "click": {
-    "color": "#818cf8",
+    "color": "auto",
     "maxRadius": 36,
     "durationMs": 480
   },
@@ -89,6 +89,10 @@
 
   "titleCard": {
     "enabled": true,
+    "titleSize": 96,
+    "kickerSize": 36,
+    "subtitleSize": 50,
+    "kickerColor": "auto",
     "durationMs": 1500,
     "transitionMs": 450
   },
@@ -125,7 +129,7 @@
 
   "music": {
     "enabled": true,
-    "volume": 0.4,
+    "volume": 0.057,
     "fadeInMs": 800,
     "fadeOutMs": 1800
   },

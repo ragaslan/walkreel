@@ -29,7 +29,7 @@ import path from 'node:path';
 import {
   SKILL_DIR, ACTIONS, sleep, now, actionOf, describeTarget, targetOf, jpegSize, Runner,
   loadStyle, findProjectDir, loadProject, launch, ensureAuth, ariaOf, applyVars, storyboardVars,
-  checkServer, watchPage,
+  checkServer, watchPage, detectBrandColor,
 } from './lib.mjs';
 
 function parseArgs(argv) {
@@ -87,6 +87,10 @@ async function main() {
 
   const style = loadStyle(args.style, sb.style, sb.language || project?.language, args.format || sb.format);
   if (project?.hide?.length) style.capture.hide = [...(style.capture.hide || []), ...project.hide];
+  // Music is the user's choice: storyboard `music:` > config `music:` > style default
+  const music = typeof sb.music === 'boolean' ? sb.music : project?.music;
+  if (typeof music === 'boolean') style.music.enabled = music;
+  else if (project) console.log(`Note: \`music:\` is not set in .demo-video/config.yaml; using the default (${style.music.enabled ? 'on' : 'off'}). Ask the user and save their answer.`);
   if (project?.displayUrl && !style.frame.browserBar.displayUrl) style.frame.browserBar.displayUrl = project.displayUrl;
   const outDir = path.resolve(args.out || path.join(sbDir, 'out', path.basename(sbPath).replace(/\.ya?ml$/, '')));
   fs.mkdirSync(outDir, { recursive: true });
@@ -184,6 +188,13 @@ async function main() {
       await page.goto(baseUrl, { waitUntil: 'load' });
     }
 
+    // Brand color: config/storyboard override, else read from the page about to be recorded
+    const brandOverride = sb.brandColor || project?.brandColor;
+    const brand = brandOverride
+      ? { color: brandOverride, source: 'config' }
+      : { color: await detectBrandColor(page), source: 'page' };
+    console.log(brand.color ? `Brand color: ${brand.color} (${brand.source === 'config' ? 'from config' : 'detected on the page'})` : 'Brand color: none found, using the neutral palette');
+
     // 3) Recording
     const framesDir = path.join(outDir, 'frames');
     fs.rmSync(framesDir, { recursive: true, force: true });
@@ -234,6 +245,7 @@ async function main() {
       subtitle: sb.subtitle ?? null,
       language: style.language,
       baseUrl,
+      brand,
       viewport: style.capture.viewport,
       dpr: style.capture.deviceScaleFactor,
       frameSize,

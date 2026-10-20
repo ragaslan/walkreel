@@ -6,11 +6,11 @@ Walkreel is a Claude skill that turns "show how to create a project in our app" 
 
 It drives your web app in a real Chromium browser, records it, and then post-produces the footage in a fixed house style:
 
-- a shadowed browser window on a gradient background, with your production domain in the address bar
+- a shadowed browser window on a gradient background in your app's own colors, with your production domain in the address bar
 - smooth zooms on the fields being filled and on the final result
 - a synthetic cursor with press effect and click rings
 - short captions, a title card and a fade out
-- one fixed, synthesized background track, plus a single click sound on submit
+- optional, very quiet acoustic-guitar background music (you're asked once per project), plus a single click sound on submit
 - landscape (16:9), vertical (9:16) and square (1:1) output from the same storyboard
 
 Every step is a line of YAML, so a video can be regenerated in seconds after the UI changes, without a model.
@@ -86,7 +86,8 @@ cd examples && node ../scripts/record.mjs new-project.yaml --out .demo-video/out
 - **Test accounts only.** Login steps live in `.demo-video/config.yaml`; never put a real user's password there. The cached session (`auth.json`) and recordings are git-ignored automatically.
 - **Recording creates real data.** Give storyboards that create records a `teardown:` so repeated runs don't pile up duplicates.
 - **Failures are explained.** A failed recording prints the failing step, an accessibility snapshot, a screenshot, and any requests still waiting for the server. It also refuses to render a stale previous recording.
-- **One sound, on purpose.** Only the submitting click makes a sound, and the music is the same for every video. Branding goes through the colors in `config/style.json`.
+- **Your colors, automatically.** The app's main color is read from the page and the video's palette is derived from it; set `brandColor` in the config to override.
+- **Quiet on purpose.** Only the submitting click makes a sound. Music is opt-in (`music: true` in the config, `--music on|off` at render time) and stays in the background: the same soft guitar loop for every video.
 
 ## License
 

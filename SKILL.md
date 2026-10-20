@@ -1,6 +1,6 @@
 ---
 name: walkreel
-description: Produces a short, polished "how to" demo video (MP4) of one feature of a web app — real browser recording with smooth zooms, a synthetic cursor, captions, a fixed background music bed and a minimal click sound on submit. Use when the user asks in any language for a video that shows how to do X in their app, a feature walkthrough, onboarding or tutorial clip, product demo, or a vertical/square clip for social media. Web apps only.
+description: Produces a short, polished "how to" demo video (MP4) of one feature of a web app — real browser recording with smooth zooms, a synthetic cursor, captions, colors taken from the app itself, optional quiet background music and a minimal click sound on submit. Use when the user asks in any language for a video that shows how to do X in their app, a feature walkthrough, onboarding or tutorial clip, product demo, or a vertical/square clip for social media. Web apps only.
 ---
 
 # Walkreel
@@ -40,12 +40,14 @@ Always run the scripts **from the user's project root** (`node <skill>/scripts/.
 ## Workflow
 
 ### 1. Project config (once per project)
-If `.demo-video/config.yaml` doesn't exist in the project root, create it. Ask for anything missing in a single message:
+If `.demo-video/config.yaml` doesn't exist in the project root, create it. Ask for anything missing in a single message — and **always ask whether they want background music** (soft acoustic guitar, stays in the background); not everyone does. Save the answer as `music: true/false` so it's never asked again:
 
 ```yaml
 baseUrl: http://localhost:3000
 language: en                       # caption language (en, tr, de; add more under i18n in style.json)
 displayUrl: app.example.com        # optional; shown in the video's address bar instead of localhost (path kept)
+brandColor: "#2563eb"              # optional; otherwise the app's main color is read from the page
+music: true                        # the user's answer to "background music?" (ask once, then keep)
 hide: [".cookie-banner", "#intercom-container"]   # optional; elements kept out of the video
 login:                             # optional; TEST/DEMO accounts only
   - goto: /login
@@ -61,6 +63,7 @@ crawl:                             # optional
 - **Never ask for or type a real user's password.** Only seed or demo accounts in a local/test environment.
 - No real customer data may appear in the video. Prefer a test environment filled with seed data.
 - Don't know the login form labels? Look at the login page in the project's source, or run `discover.mjs` once without `login`; the sign-in fields show up in the map.
+- An existing config without a `music:` line means the question was never asked: ask it before the next video and add the line (`record.mjs` prints a note when it's missing).
 - `.demo-video/.gitignore` is created automatically (ignores `auth.json` and `out/`); config and storyboards can be committed.
 - Dev-server badges (Next.js, Vite) are always hidden; use `hide` for anything else (chat widgets, cookie banners, environment ribbons).
 
@@ -84,6 +87,7 @@ title: Adding a new contact        # shown on the title card
 subtitle: Acme CRM                  # optional
 # language: de                      # optional, overrides the config
 # format: vertical                  # optional: landscape (default) | vertical (9:16) | square (1:1)
+# music: false                      # optional, overrides the config for this video
 steps:
   - goto: "/contacts"               # if the first step is goto, the video starts with the page loaded
     caption: Open Contacts
@@ -167,14 +171,16 @@ If it's the first video for this project, look at 3–4 of the `--stills` frames
 
 Send the MP4, state its length in one line, and ask whether they want changes. Keep the storyboard in the project (e.g. `.demo-video/storyboards/`); when the UI changes, the same file regenerates the video without a model.
 
-Visual-only changes don't need a new recording: `render.py ... --style override.json` (a *partial* JSON; it's merged over the recorded style). `--gif` also writes a GIF.
+Visual-only changes don't need a new recording: `render.py ... --style override.json` (a *partial* JSON; it's merged over the recorded style). `--music on|off` switches the music for that render (e.g. the user changed their mind). `--gif` also writes a GIF.
 
 ## The fixed style
 
-Every video uses the same `config/style.json`: a shadowed browser window (with address bar) on a gradient background, easeInOutCubic zoom in/out/pan, zooming in on fields while typing, a synthetic cursor with press effect, a click ring, bottom-center captions, a title card (a localized "How it works" kicker + title), a fade out, compressed page loads and sped-up typing.
+Every video uses the same `config/style.json`: a shadowed browser window (with address bar) on a gradient background in the app's own colors, easeInOutCubic zoom in/out/pan, zooming in on fields while typing, a synthetic cursor with press effect, a click ring, bottom-center captions, a title card (a localized "How it works" kicker, the title and the app name in readable sizes), a fade out, compressed page loads and sped-up typing.
 
 **Sound is sparse on purpose.** By default only the click that submits a form makes a sound (a real submit button, or a button whose name contains one of `i18n.<lang>.submitWords`; if none is found, the last button click). The whoosh plays once, on the title card transition. `sfx.clicks`: `submit` | `actions` | `all` | `none`; `sfx.whoosh`: `intro` | `all` | `none`.
 
-**Music:** one fixed, synthesized track (`assets/music/theme.m4a`, 92 BPM, ~42 s seamless loop) plays under every video with a soft fade in/out. It is deliberately the same for everyone and not configurable beyond `music.enabled` and `music.volume`. Don't swap in other tracks.
+**Colors come from the app.** While recording, the app's main color is read from the first page (primary button backgrounds, `--primary`/`--brand`/`--accent` CSS variables, `<meta name="theme-color">`); the background gradient, the click ring and the title card tint are derived from it, always deep enough for white text. If no clear color is found (a gray UI), a neutral slate palette is used. Set `brandColor` in the config or storyboard to force one; any explicit color in `style.json` (instead of `"auto"`) also wins.
 
-For branding, change only colors in `style.json` (`frame.background`, `click.color`, `captions`). Per-video tweaks go in the storyboard's `style:` key.
+**Music (optional, the user decides):** one fixed, synthesized track (`assets/music/theme.m4a`: softly finger-picked nylon guitar over a quiet bass in a small dry room; no melody, drums, pads or big reverb; 24 s seamless loop) plays very quietly (~-30 LUFS) with a soft fade in/out — only when the user said yes. It is deliberately the same for everyone and not configurable beyond on/off and `music.volume`. Don't swap in other tracks.
+
+Per-video tweaks go in the storyboard's `style:` key.

@@ -430,6 +430,8 @@ export function loadProject(dir) {
     login: cfg.login || [],
     loginCheck: cfg.loginCheck || null, // optional: URL regex that identifies the login page
     language: cfg.language,
+    brandColor: cfg.brandColor || null, // overrides the detected app color ('#rrggbb')
+    music: typeof cfg.music === 'boolean' ? cfg.music : null, // the user's answer to "background music?"; null = never asked
     displayUrl: cfg.displayUrl || null, // shown in the video's address bar instead of localhost
     hide: cfg.hide || [], // CSS selectors hidden while recording (cookie banner, chat bubble...)
     crawl: cfg.crawl || {},
@@ -437,6 +439,65 @@ export function loadProject(dir) {
     mapJson: path.join(dir, 'app-map.json'),
     mapMd: path.join(dir, 'app-map.md'),
   };
+}
+
+// ---------------------------------------------------------------- brand color
+// The app's main color, read from the page so the video's background, click ring and
+// title card match the app instead of a fixed palette. Candidates, by weight:
+//   - background of visible buttons / button-like links (by area; the strongest signal)
+//   - common CSS custom properties (--primary, --brand, --accent ...)
+//   - <meta name="theme-color">
+// Grays, near-white and near-black colors are ignored. Returns '#rrggbb' or null.
+export async function detectBrandColor(page) {
+  return page
+    .evaluate(() => {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 1;
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      // canvas understands every CSS color syntax (rgb, hsl, oklch, color-mix...)
+      const toRgb = (c) => {
+        if (!c) return null;
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = '#000';
+        ctx.fillStyle = c.trim();
+        ctx.fillRect(0, 0, 1, 1);
+        const d = ctx.getImageData(0, 0, 1, 1).data;
+        return d[3] < 200 ? null : [d[0], d[1], d[2]];
+      };
+      const hsl = ([r, g, b]) => {
+        r /= 255; g /= 255; b /= 255;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+        const s = mx === mn ? 0 : (mx - mn) / (1 - Math.abs(2 * l - 1));
+        return { s, l };
+      };
+      const scores = new Map();
+      const vote = (c, w) => {
+        const rgb = toRgb(c);
+        if (!rgb) return;
+        const { s, l } = hsl(rgb);
+        if (s < 0.25 || l < 0.18 || l > 0.78) return; // gray, near-black, pastel/near-white
+        const hex = '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
+        scores.set(hex, (scores.get(hex) || 0) + w * s);
+      };
+      const vw = innerWidth, vh = innerHeight;
+      for (const el of document.querySelectorAll('button, a, [role=button], input[type=submit], input[type=button]')) {
+        const r = el.getBoundingClientRect();
+        if (r.width < 24 || r.height < 16 || r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw) continue;
+        vote(getComputedStyle(el).backgroundColor, Math.min(r.width * r.height, 40000));
+      }
+      const root = getComputedStyle(document.documentElement);
+      for (const name of ['--primary', '--color-primary', '--brand', '--color-brand', '--accent', '--color-accent',
+        '--primary-color', '--brand-color', '--theme-color', '--primary-500', '--brand-500', '--color-primary-500']) {
+        const v = root.getPropertyValue(name);
+        // shadcn-style tokens are bare HSL triples: "222 47% 31%"
+        if (v) vote(/^\s*[\d.]+\s+[\d.]+%\s+[\d.]+%\s*$/.test(v) ? `hsl(${v})` : v, 30000);
+      }
+      vote(document.querySelector('meta[name="theme-color"]')?.content, 20000);
+      let best = null, bestScore = 0;
+      for (const [hex, sc] of scores) if (sc > bestScore) { best = hex; bestScore = sc; }
+      return best;
+    })
+    .catch(() => null);
 }
 
 // ---------------------------------------------------------------- server health

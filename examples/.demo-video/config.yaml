@@ -2,6 +2,7 @@
 # Serve the example first:  python3 -m http.server 5173 -d examples/mock-app
 baseUrl: http://localhost:5173/
 language: en
+music: true                         # the user's answer to "background music?"
 displayUrl: app.acme.example        # shown in the video's address bar instead of localhost
 login:
   - goto: "#/login"
