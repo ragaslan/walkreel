@@ -1,6 +1,6 @@
 {
   "name": "walkreel",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Turns a short YAML storyboard into a polished product demo video of a web app (Playwright recording + Python render).",
   "keywords": [
     "claude-skill",
