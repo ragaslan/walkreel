@@ -2,6 +2,14 @@
 
 Demo videos of web app features, from a short YAML storyboard.
 
+<p align="center">
+  <a href="https://github.com/ragaslan/walkreel/raw/main/docs/demo.mp4">
+    <img src="https://raw.githubusercontent.com/ragaslan/walkreel/main/docs/demo.gif" alt="A walkreel video: creating a project in the Acme CRM example app" width="960">
+  </a>
+  <br>
+  <sub>Made by walkreel from <a href="examples/new-project.yaml"><code>examples/new-project.yaml</code></a> (22 lines of YAML) against the bundled example app. Click for the MP4 with sound.</sub>
+</p>
+
 Walkreel is a Claude skill that turns "show how to create a project in our app" into a polished, ready-to-share MP4, usually in one to two minutes.
 
 It drives your web app in a real Chromium browser, records it, and then post-produces the footage in a fixed house style:

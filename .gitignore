@@ -9,3 +9,5 @@ examples/.demo-video/auth.json
 examples/.demo-video/out/
 *.mp4
 *.gif
+!docs/*.gif
+!docs/*.mp4
