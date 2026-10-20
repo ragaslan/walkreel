@@ -137,7 +137,7 @@ teardown:                           # after recording; runs even if the recordin
 | `click` / `check` | target | cursor travels, clicks, ripple |
 | `hover` | target | |
 | `type` | `{target, value, clear?, enter?}` | clears the field first; for date/time inputs give `YYYY-MM-DD` / `HH:MM` |
-| `select` | `{target, option}` | native `<select>`; custom dropdowns are `click` steps |
+| `select` | `{target, option}` | native `<select>`: the video shows a look-alike list opening and the cursor picking the option (the OS popup itself can't be recorded); custom dropdowns are `click` steps |
 | `press` | `"Enter"`, `"Escape"` | |
 | `scroll` | `400` or `{to: target}` | smooth scroll |
 | `waitFor` | `{text: ...}` / `{url: "regex"}` / target | waiting is compressed in the video |

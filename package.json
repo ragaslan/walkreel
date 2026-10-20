@@ -1,18 +1,7 @@
 {
   "name": "walkreel",
-  "version": "0.2.0",
-  "private": true,
-  "type": "module",
+  "version": "0.3.0",
   "description": "Turns a short YAML storyboard into a polished product demo video of a web app (Playwright recording + Python render).",
-  "dependencies": {
-    "playwright": "1.56.0",
-    "yaml": "^2.5.0"
-  },
-  "scripts": {
-    "doctor": "node scripts/doctor.mjs"
-  },
-  "license": "MIT",
-  "author": "Ramazan Agaslan",
   "keywords": [
     "claude-skill",
     "demo-video",
@@ -21,5 +10,40 @@
     "screencast",
     "playwright",
     "tutorial-video"
-  ]
+  ],
+  "license": "MIT",
+  "author": "Ramazan Agaslan",
+  "homepage": "https://github.com/ragaslan/walkreel#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ragaslan/walkreel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ragaslan/walkreel/issues"
+  },
+  "type": "module",
+  "bin": {
+    "walkreel": "bin/walkreel.mjs"
+  },
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "LICENSE",
+    "bin/",
+    "config/",
+    "scripts/*.mjs",
+    "scripts/*.py",
+    "assets/",
+    "examples/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.56.0",
+    "yaml": "^2.5.0"
+  }
 }

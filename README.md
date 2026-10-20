@@ -18,15 +18,26 @@ Every step is a line of YAML, so a video can be regenerated in seconds after the
 ## Install
 
 ```bash
-git clone https://github.com/ragaslan/walkreel.git ~/.claude/skills/walkreel
-cd ~/.claude/skills/walkreel
-npm install
-npx playwright install chromium
-python3 -m pip install opencv-python-headless numpy pillow
-node scripts/doctor.mjs          # checks everything, prints the fix for anything missing
+npx walkreel install
 ```
 
-You also need `ffmpeg` with libx264 and aac (any standard build): `brew install ffmpeg`, `sudo apt install ffmpeg` or `winget install ffmpeg`.
+This copies the skill to `~/.claude/skills/walkreel`, installs its dependencies and Chromium, and checks the rest. Use `--project` to install it for the current project only (`./.claude/skills/walkreel`).
+
+Two things can't come from npm; the installer tells you if they're missing:
+
+- Python 3 with `opencv-python-headless numpy pillow` (`python3 -m pip install opencv-python-headless numpy pillow`)
+- `ffmpeg` with libx264 and aac (any standard build): `brew install ffmpeg`, `sudo apt install ffmpeg` or `winget install ffmpeg`
+
+Run `npx walkreel doctor` any time to re-check.
+
+<details><summary>Install from git instead</summary>
+
+```bash
+git clone https://github.com/ragaslan/walkreel.git ~/.claude/skills/walkreel
+cd ~/.claude/skills/walkreel && npm install && npx playwright install chromium
+node scripts/doctor.mjs
+```
+</details>
 
 ## Use it
 

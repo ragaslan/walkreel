@@ -129,6 +129,85 @@ async function covered(loc) {
     .catch(() => false);
 }
 
+// A native <select> opens an OS popup that never shows up in the screencast, so the
+// video would show the value jumping without the list ever opening. While recording we
+// draw a look-alike list inside the page instead (top layer, so it sits above modal
+// dialogs), let the cursor travel to the option, then close it and set the real value.
+// Returns the list and target-option rects (viewport CSS px), or null if not possible.
+async function openFakeSelect(loc, opt) {
+  return loc
+    .evaluate((el, opt) => {
+      if (el.tagName !== 'SELECT' || el.multiple) return null;
+      const opts = [...el.options].filter((o) => !o.hidden);
+      let idx = -1;
+      if (opt && typeof opt === 'object' && typeof opt.index === 'number') idx = opts.indexOf(el.options[opt.index]);
+      else {
+        const want = typeof opt === 'object' ? opt.label ?? opt.value : String(opt);
+        idx = opts.findIndex((o) => o.label.trim() === String(want).trim());
+        if (idx < 0) idx = opts.findIndex((o) => o.value === String(want));
+      }
+      if (idx < 0) return null;
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      const rowH = Math.max(30, Math.round(parseFloat(cs.fontSize) * 2));
+      const visible = Math.min(opts.length, 8);
+      const listH = visible * rowH + 8;
+      const below = innerHeight - r.bottom - 8;
+      const top = below >= listH || below >= r.top ? r.bottom + 4 : Math.max(8, r.top - 4 - listH);
+      const bg = cs.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor) ? cs.backgroundColor : '#fff';
+      const list = document.createElement('div');
+      list.setAttribute('data-walkreel-select', '');
+      list.style.cssText = [
+        'position:fixed', 'inset:auto', 'margin:0', `left:${r.left}px`, `top:${top}px`, `width:${r.width}px`,
+        `max-height:${listH}px`, 'overflow:hidden', 'padding:4px 0', 'box-sizing:border-box',
+        `background:${bg}`, `color:${cs.color}`, `font:${cs.font}`, 'border:1px solid rgba(0,0,0,.12)',
+        'border-radius:8px', 'box-shadow:0 12px 32px rgba(0,0,0,.18)', 'z-index:2147483647',
+      ].join(';');
+      opts.forEach((o, i) => {
+        const row = document.createElement('div');
+        row.textContent = o.label;
+        row.style.cssText = `height:${rowH}px;line-height:${rowH}px;padding:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default` +
+          (o.selected ? ';font-weight:600' : '') + (o.disabled ? ';opacity:.45' : '');
+        list.appendChild(row);
+      });
+      // top layer via the popover API; otherwise inside the dialog (or body)
+      if (list.showPopover) {
+        list.popover = 'manual';
+        document.body.appendChild(list);
+        list.showPopover();
+      } else (el.closest('dialog') || document.body).appendChild(list);
+      // keep the target option inside the visible part of the list
+      list.scrollTop = Math.max(0, (idx - visible + 2) * rowH);
+      list.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 140, easing: 'ease-out' });
+      const lr = list.getBoundingClientRect();
+      const tr = list.children[idx].getBoundingClientRect();
+      return { index: idx, list: { x: lr.x, y: lr.y, w: lr.width, h: lr.height }, target: { x: tr.x, y: tr.y, w: tr.width, h: tr.height } };
+    }, opt)
+    .catch(() => null);
+}
+
+// Highlight the option under the cursor. Not done with :hover: an open modal <dialog>
+// makes everything outside it inert, so hover never fires on the list.
+async function highlightFakeOption(page, idx) {
+  await page
+    .evaluate((idx) => {
+      const row = document.querySelector('[data-walkreel-select]')?.children[idx];
+      if (row) row.style.background = 'color-mix(in srgb, currentColor 11%, transparent)';
+    }, idx)
+    .catch(() => {});
+}
+
+async function closeFakeSelect(page) {
+  await page
+    .evaluate(async () => {
+      const list = document.querySelector('[data-walkreel-select]');
+      if (!list) return;
+      await list.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 110, easing: 'ease-in' }).finished.catch(() => {});
+      list.remove();
+    })
+    .catch(() => {});
+}
+
 // Whether the clicked element submits a form, and its visible name (used for the sound decision).
 // Note: a <button> defaults to type=submit; without a form (b.form null) it does not count.
 async function clickInfo(loc) {
@@ -331,6 +410,24 @@ export class Runner {
         if (!this.fast) await sleep(p.preClickMs);
         this.log({ type: 'click', kind: 'field', x: this.cursor.x, y: this.cursor.y, box: b, t: now() });
         const opt = spec.option;
+        // Show the list opening and the choice being made (see openFakeSelect)
+        const fake = this.fast ? null : await openFakeSelect(loc, opt);
+        if (fake) {
+          if (focusBox === b) {
+            // auto zoom: frame the field and the open list together
+            const x0 = Math.min(b.x, fake.list.x), y0 = Math.min(b.y, fake.list.y);
+            const x1 = Math.max(b.x + b.w, fake.list.x + fake.list.w), y1 = Math.max(b.y + b.h, fake.list.y + fake.list.h);
+            focusBox = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+          }
+          await sleep(p.selectOpenMs ?? 260);
+          const t = fake.target;
+          await this.moveTo(t.x + Math.min(t.w * 0.6, t.w - 24), t.y + t.h / 2);
+          await highlightFakeOption(page, fake.index);
+          await sleep(p.selectHoverMs ?? 280);
+          this.log({ type: 'click', kind: 'field', x: this.cursor.x, y: this.cursor.y, box: t, t: now() });
+          await sleep(120);
+          await closeFakeSelect(page);
+        }
         await loc.selectOption(typeof opt === 'object' ? opt : { label: String(opt) }, { timeout: this.timeout });
         await this.settle(urlBefore, p.postClickMs);
         break;
