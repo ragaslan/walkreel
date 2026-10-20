@@ -18,7 +18,7 @@ Every step is a line of YAML, so a video can be regenerated in seconds after the
 ## Install
 
 ```bash
-git clone <this repo> ~/.claude/skills/walkreel
+git clone https://github.com/ragaslan/walkreel.git ~/.claude/skills/walkreel
 cd ~/.claude/skills/walkreel
 npm install
 npx playwright install chromium
